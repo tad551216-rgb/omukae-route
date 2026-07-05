@@ -93,10 +93,11 @@ nav#tabbar button.on{color:var(--verm);font-weight:700;}
 
 /* 今日のお迎え */
 .pick{
-  display:flex;align-items:center;gap:7px;background:var(--card);
-  border:1px solid var(--line);border-radius:9px;padding:8px 9px;margin-bottom:7px;
+  display:flex;flex-direction:column;gap:7px;background:var(--card);
+  border:1px solid var(--line);border-radius:9px;padding:9px 10px;margin-bottom:7px;
 }
 .pick.on{border-color:var(--indigo);background:#fff;}
+.pick .toprow{display:flex;align-items:center;gap:7px;}
 .pick .tgl{
   flex:0 0 auto;width:40px;height:40px;border-radius:8px;font-size:1.05rem;
   background:#eee8d8;color:var(--muted);display:flex;align-items:center;justify-content:center;
@@ -105,9 +106,17 @@ nav#tabbar button.on{color:var(--verm);font-weight:700;}
 .pick.on .tgl{background:var(--verm);color:#fff;border-color:var(--verm);}
 .pick .nm{flex:1;min-width:0;}
 .pick .nm .n1{font-size:.9rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.pick .nm input.memo{border:none;border-bottom:1px dashed var(--line);border-radius:0;padding:1px 2px;font-size:.78rem;background:transparent;}
-.pick input.tm{flex:0 0 88px;text-align:center;font-variant-numeric:tabular-nums;padding:8px 4px;}
-.pick input.num{flex:0 0 52px;text-align:center;padding:8px 2px;}
+.pick .nm input.memo{width:100%;border:none;border-bottom:1px dashed var(--line);border-radius:0;padding:2px 2px;font-size:.78rem;background:transparent;margin-top:2px;}
+.pick .bottomrow{display:flex;align-items:center;gap:8px;padding-left:47px;}
+.pick .bottomrow input.tm{flex:0 0 92px;text-align:center;font-variant-numeric:tabular-nums;padding:8px 4px;}
+.pick .stepper{flex:0 0 auto;display:flex;align-items:center;gap:3px;}
+.pick .stepper button.stp{
+  width:32px;height:36px;padding:0;border-radius:6px;font-size:1.2rem;line-height:1;
+  background:#fff;color:var(--indigo);border:1.5px solid var(--line);font-weight:700;
+}
+.pick .stepper button.stp:active{background:var(--indigo);color:#fff;}
+.pick .stepper input.num{width:38px;flex:none;text-align:center;padding:7px 2px;font-variant-numeric:tabular-nums;}
+.pick .unit{flex:0 0 auto;font-size:.78rem;color:var(--muted);}
 .pick .unit{flex:0 0 auto;font-size:.72rem;color:var(--muted);}
 .kindtag{font-size:.62rem;color:#fff;background:var(--indigo);border-radius:4px;padding:1px 5px;margin-right:4px;vertical-align:1px;}
 .kindtag.k支{background:var(--verm);}
@@ -249,13 +258,13 @@ textarea{min-height:110px;font-size:.8rem;}
   <h2>移動時間の見積もり</h2>
   <div class="card">
     <label class="fld" for="setLeg">座標が未登録の区間の移動時間（分）</label>
-    <input id="setLeg" type="number" min="1" max="60" inputmode="numeric" style="width:110px;">
+    <input id="setLeg" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" style="width:110px;">
     <label class="fld" for="setSpeed">平均時速（座標が登録済みの区間・km/h）</label>
-    <input id="setSpeed" type="number" min="5" max="60" inputmode="numeric" style="width:110px;">
+    <input id="setSpeed" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" style="width:110px;">
     <label class="fld" for="setBoard">1校あたりの乗車にかかる時間（分）</label>
-    <input id="setBoard" type="number" min="0" max="30" inputmode="numeric" style="width:110px;">
+    <input id="setBoard" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" style="width:110px;">
     <label class="fld" for="setGap">別便とみなす時刻の差（分）</label>
-    <input id="setGap" type="number" min="5" max="120" inputmode="numeric" style="width:110px;">
+    <input id="setGap" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" style="width:110px;">
     <p class="note" style="margin-bottom:0;">下校時刻がこの差以上離れていると（例：13:15便と13:45便）、いったん事業所に戻って降ろしてから次の便に向かう想定で計算します。</p>
   </div>
 
@@ -316,7 +325,7 @@ textarea{min-height:110px;font-size:.8rem;}
   <label class="fld" for="vhName">車の名前</label>
   <input id="vhName" placeholder="例：ハイエース／軽バン白">
   <label class="fld" for="vhCap">乗車できる児童の人数</label>
-  <input id="vhCap" type="number" min="1" max="30" inputmode="numeric" style="width:110px;">
+  <input id="vhCap" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" style="width:110px;">
   <div class="row" style="margin-top:14px;">
     <button class="ghost" id="btnVehicleCancel">やめる</button>
     <button class="verm" id="btnVehicleDelete" style="display:none;">削除</button>
@@ -500,14 +509,25 @@ function renderPicks(){
     box.innerHTML = shown.map(s=>{
       const p = pickOf(s.id);
       const t = p.time || s.time || '15:00';
-      return '<div class="pick'+(p.on?' on':'')+'" data-id="'+s.id+'">'
+      let html = '<div class="pick'+(p.on?' on':'')+'" data-id="'+s.id+'">';
+      html += '<div class="toprow">'
         +'<button class="tgl" aria-label="お迎え切替">'+(p.on?'✓':'＋')+'</button>'
         +'<div class="nm"><div class="n1"><span class="kindtag'+(s.kind==='支'?' k支':'')+'">'+KIND_LABEL[s.kind]+'</span>'+esc(shortName(s.name))+'</div>'
-        +'<input class="memo" placeholder="メモ（名前など）" value="'+esc(p.memo)+'"'+(p.on?'':' style="display:none;"')+'></div>'
-        +'<input class="tm" type="time" value="'+t+'"'+(p.on?'':' style="visibility:hidden;"')+'>'
-        +'<input class="num" type="number" min="0" max="30" inputmode="numeric" value="'+(p.num||1)+'"'+(p.on?'':' style="visibility:hidden;"')+'>'
-        +'<span class="unit"'+(p.on?'':' style="visibility:hidden;"')+'>名</span>'
-        +'</div>';
+        +(p.on?'<input class="memo" placeholder="メモ（名前など）" value="'+esc(p.memo)+'">':'')
+        +'</div></div>';
+      if(p.on){
+        html += '<div class="bottomrow">'
+          +'<input class="tm" type="time" value="'+t+'">'
+          +'<div class="stepper">'
+          +'<button type="button" class="stp minus" aria-label="人数を減らす" tabindex="-1">－</button>'
+          +'<input class="num" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" value="'+(p.num||1)+'">'
+          +'<button type="button" class="stp plus" aria-label="人数を増やす" tabindex="-1">＋</button>'
+          +'</div>'
+          +'<span class="unit">名</span>'
+          +'</div>';
+      }
+      html += '</div>';
+      return html;
     }).join('');
     box.querySelectorAll('.pick').forEach(el=>{
       const id = el.dataset.id;
@@ -517,11 +537,21 @@ function renderPicks(){
         if(p.on && !p.time){ const s=schoolById(id); p.time = (s&&s.time)||'15:00'; }
         save(); renderPicks();
       });
-      el.querySelector('.tm').addEventListener('change', e=>{ pickOf(id).time = e.target.value; save(); });
-      el.querySelector('.num').addEventListener('change', e=>{ pickOf(id).num = Math.max(0, parseInt(e.target.value,10)||0); save(); });
-      el.querySelector('.memo').addEventListener('change', e=>{ pickOf(id).memo = e.target.value; save(); });
+      el.querySelector('.tm')?.addEventListener('change', e=>{ pickOf(id).time = e.target.value; save(); });
+      el.querySelector('.num')?.addEventListener('change', e=>{ pickOf(id).num = Math.max(0, parseInt(e.target.value,10)||0); e.target.value = pickOf(id).num; save(); updatePickCount(); });
+      const numInput = el.querySelector('.num');
+      el.querySelector('.stp.minus')?.addEventListener('click', ()=>{
+        const p = pickOf(id); p.num = Math.max(0, (p.num||0) - 1); numInput.value = p.num; save(); updatePickCount();
+      });
+      el.querySelector('.stp.plus')?.addEventListener('click', ()=>{
+        const p = pickOf(id); p.num = Math.min(30, (p.num||0) + 1); numInput.value = p.num; save(); updatePickCount();
+      });
+      el.querySelector('.memo')?.addEventListener('change', e=>{ pickOf(id).memo = e.target.value; save(); });
     });
   }
+  updatePickCount();
+}
+function updatePickCount(){
   const sel = state.schools.filter(s=>pickOf(s.id).on);
   const total = sel.reduce((a,s)=>a+(pickOf(s.id).num||0), 0);
   $('#pickCount').textContent = 'お迎え '+sel.length+' 校 ・ '+total+' 名';
