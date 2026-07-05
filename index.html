@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>おむかえルート帖 | つくる手帖</title>
+<meta name="description" content="放課後等デイサービスのお迎えルートを時刻順に組み立てて、Googleマップのルートリンクを作るツール。データは端末の中だけに保存されます。">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2c5077">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="おむかえルート帖">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{
+  --paper:#f7f4ea;
+  --grid:rgba(44,80,119,.10);
+  --ink:#33383f;
+  --indigo:#2c5077;
+  --indigo-deep:#1e3a58;
+  --verm:#c9472e;
+  --line:#d8d2c0;
+  --card:#fffdf6;
+  --muted:#8a8578;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html{font-size:16px;}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
+  color:var(--ink);
+  background:
+    repeating-linear-gradient(0deg,transparent,transparent 23px,var(--grid) 23px,var(--grid) 24px),
+    repeating-linear-gradient(90deg,transparent,transparent 23px,var(--grid) 23px,var(--grid) 24px),
+    var(--paper);
+  min-height:100dvh;
+  padding-bottom:calc(72px + env(safe-area-inset-bottom));
+  line-height:1.6;
+}
+header{
+  background:var(--indigo);
+  color:#fdfaf0;
+  padding:calc(10px + env(safe-area-inset-top)) 16px 10px;
+  position:sticky;top:0;z-index:20;
+  box-shadow:0 2px 6px rgba(30,58,88,.25);
+}
+header h1{font-size:1.15rem;letter-spacing:.12em;font-weight:700;}
+header .sub{font-size:.68rem;letter-spacing:.2em;opacity:.75;}
+main{max-width:640px;margin:0 auto;padding:14px 14px 20px;}
+section.tab{display:none;}
+section.tab.active{display:block;}
+h2{
+  font-size:.95rem;color:var(--indigo);letter-spacing:.1em;
+  border-left:5px solid var(--verm);padding-left:8px;margin:18px 0 10px;
+}
+h2:first-child{margin-top:4px;}
+.card{
+  background:var(--card);border:1px solid var(--line);border-radius:10px;
+  padding:12px;margin-bottom:10px;box-shadow:0 1px 2px rgba(51,56,63,.05);
+}
+.note{font-size:.78rem;color:var(--muted);margin:6px 2px 12px;}
+button{
+  font-family:inherit;font-size:.92rem;border:none;border-radius:8px;
+  padding:10px 14px;cursor:pointer;color:#fff;background:var(--indigo);
+}
+button:active{transform:translateY(1px);}
+button.verm{background:var(--verm);}
+button.ghost{background:transparent;color:var(--indigo);border:1.5px solid var(--indigo);}
+button.small{font-size:.78rem;padding:5px 10px;border-radius:6px;}
+button.wide{display:block;width:100%;font-size:1.02rem;padding:13px;letter-spacing:.15em;}
+button:disabled{opacity:.4;}
+input,select,textarea{
+  font-family:inherit;font-size:16px;border:1px solid var(--line);border-radius:7px;
+  padding:8px 9px;background:#fff;color:var(--ink);width:100%;
+}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--indigo);outline-offset:1px;}
+label.fld{display:block;font-size:.78rem;color:var(--indigo);font-weight:600;margin:8px 0 3px;}
+.row{display:flex;gap:8px;align-items:center;}
+.row>*{flex:1;}
+.row>.shrink{flex:0 0 auto;}
+
+/* 下タブバー */
+nav#tabbar{
+  position:fixed;left:0;right:0;bottom:0;z-index:30;
+  background:var(--card);border-top:1.5px solid var(--indigo);
+  display:flex;padding-bottom:env(safe-area-inset-bottom);
+}
+nav#tabbar button{
+  flex:1;background:none;color:var(--muted);border-radius:0;
+  padding:9px 0 7px;font-size:.72rem;line-height:1.25;
+}
+nav#tabbar button .ic{display:block;font-size:1.25rem;}
+nav#tabbar button.on{color:var(--verm);font-weight:700;}
+
+/* 今日のお迎え */
+.pick{
+  display:flex;align-items:center;gap:8px;background:var(--card);
+  border:1px solid var(--line);border-radius:9px;padding:8px 9px;margin-bottom:7px;
+}
+.pick.on{border-color:var(--indigo);background:#fff;}
+.pick .tgl{
+  flex:0 0 auto;width:40px;height:40px;border-radius:8px;font-size:1.05rem;
+  background:#eee8d8;color:var(--muted);display:flex;align-items:center;justify-content:center;
+  border:1.5px solid var(--line);cursor:pointer;
+}
+.pick.on .tgl{background:var(--verm);color:#fff;border-color:var(--verm);}
+.pick .nm{flex:1;min-width:0;}
+.pick .nm .n1{font-size:.9rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pick .nm input.memo{border:none;border-bottom:1px dashed var(--line);border-radius:0;padding:1px 2px;font-size:.78rem;background:transparent;}
+.pick input.tm{flex:0 0 92px;text-align:center;font-variant-numeric:tabular-nums;}
+.kindtag{font-size:.62rem;color:#fff;background:var(--indigo);border-radius:4px;padding:1px 5px;margin-right:4px;vertical-align:1px;}
+.kindtag.k支{background:var(--verm);}
+.filterbar{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;}
+.filterbar button{background:#fff;color:var(--indigo);border:1.5px solid var(--line);font-size:.78rem;padding:5px 12px;border-radius:99px;}
+.filterbar button.on{background:var(--indigo);color:#fff;border-color:var(--indigo);}
+
+/* ルート */
+.stop{
+  display:flex;gap:9px;align-items:flex-start;background:var(--card);
+  border:1px solid var(--line);border-radius:9px;padding:9px 10px;margin-bottom:0;
+}
+.stop .no{
+  flex:0 0 30px;height:30px;border-radius:50%;background:var(--verm);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem;margin-top:2px;
+}
+.stop.term .no{background:var(--indigo);font-size:.68rem;}
+.stop .bd{flex:1;min-width:0;}
+.stop .bd .t{font-weight:700;color:var(--indigo);font-variant-numeric:tabular-nums;}
+.stop .bd .s{font-size:.92rem;}
+.stop .bd .m{font-size:.76rem;color:var(--muted);}
+.stop .mv{flex:0 0 auto;display:flex;flex-direction:column;gap:4px;}
+.stop .mv button{background:#fff;color:var(--indigo);border:1.5px solid var(--line);width:34px;height:26px;padding:0;font-size:.85rem;border-radius:6px;}
+.leg{display:flex;justify-content:center;padding:1px 0;}
+.leg span{color:var(--verm);font-size:.9rem;line-height:1;letter-spacing:0;}
+#routeButtons a{
+  display:block;text-align:center;background:var(--indigo);color:#fff;text-decoration:none;
+  border-radius:8px;padding:13px;font-size:1rem;letter-spacing:.08em;margin-bottom:8px;
+}
+#routeButtons a:active{transform:translateY(1px);}
+
+/* 学校マスタ */
+.sch{
+  display:flex;align-items:center;gap:8px;background:var(--card);
+  border:1px solid var(--line);border-radius:9px;padding:8px 10px;margin-bottom:7px;
+}
+.sch .nm{flex:1;min-width:0;font-size:.9rem;}
+.sch .nm .ad{font-size:.72rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+dialog{
+  border:1.5px solid var(--indigo);border-radius:12px;padding:16px;width:min(92vw,460px);
+  background:var(--card);color:var(--ink);
+}
+dialog::backdrop{background:rgba(30,58,88,.45);}
+textarea{min-height:110px;font-size:.8rem;}
+.toast{
+  position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom));transform:translateX(-50%);
+  background:var(--indigo-deep);color:#fff;padding:9px 18px;border-radius:99px;font-size:.85rem;
+  opacity:0;transition:opacity .25s;pointer-events:none;z-index:50;white-space:nowrap;
+}
+.toast.show{opacity:1;}
+.empty{color:var(--muted);font-size:.85rem;text-align:center;padding:22px 0;}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;}}
+</style>
+</head>
+<body>
+<header>
+  <h1>おむかえルート帖</h1>
+  <div class="sub">TSUKURU TECHO ｜ 放課後等デイサービスの送迎ルートづくり</div>
+</header>
+
+<main>
+
+<!-- ①今日のお迎え -->
+<section class="tab active" id="tab-today">
+  <h2>今日のお迎え <span id="todayDate" style="font-weight:400;color:var(--muted);font-size:.8rem;"></span></h2>
+  <p class="note">お迎えに行く学校をタップして選び、時刻を確認します。メモ欄には児童の人数や名前など。</p>
+  <div class="filterbar" id="kindFilter"></div>
+  <div id="pickList"></div>
+  <div class="row" style="margin:12px 0;">
+    <button class="ghost small shrink" id="btnClearPicks">選択をすべて解除</button>
+    <div style="text-align:right;font-size:.85rem;color:var(--indigo);" id="pickCount"></div>
+  </div>
+  <button class="wide verm" id="btnBuild">ルートを組み立てる</button>
+</section>
+
+<!-- ②ルート -->
+<section class="tab" id="tab-route">
+  <h2>お迎えルート</h2>
+  <div id="routeArea"></div>
+</section>
+
+<!-- ③学校マスタ -->
+<section class="tab" id="tab-school">
+  <h2>学校のリスト</h2>
+  <p class="note">和泉市立の小・中学校、義務教育学校、和泉支援学校をあらかじめ登録しています。使わない学校は削除して、実際にお迎えのある学校だけに絞ると使いやすくなります。</p>
+  <button class="small" id="btnAddSchool">＋ 学校を追加</button>
+  <div id="schoolList" style="margin-top:10px;"></div>
+</section>
+
+<!-- ④設定 -->
+<section class="tab" id="tab-setting">
+  <h2>事業所（出発・帰着地点）</h2>
+  <div class="card">
+    <label class="fld" for="facName">事業所の名前</label>
+    <input id="facName" placeholder="例：放課後デイ ○○">
+    <label class="fld" for="facAddr">住所（Googleマップで検索できる書き方）</label>
+    <input id="facAddr" placeholder="例：大阪府和泉市府中町○丁目○-○">
+    <label class="fld" for="facDep">出発時刻（目安）</label>
+    <input id="facDep" type="time" value="14:30" style="width:130px;">
+  </div>
+
+  <h2>ルートの並べ方</h2>
+  <div class="card" style="font-size:.85rem;">
+    <p>お迎え時刻の早い順に並べます。同じ時刻の学校が続くときは、緯度・経度が登録してあれば近い順に並べ替えます。並び順はルート画面の ▲▼ でいつでも手直しできます。</p>
+  </div>
+
+  <h2>データの控え（書き出し・読み込み）</h2>
+  <div class="card">
+    <p class="note" style="margin-top:0;">機種変更や他の端末への引き継ぎに。書き出した文をメモやLINEのKeepに貼って保存し、新しい端末で読み込みます。</p>
+    <div class="row">
+      <button class="small ghost" id="btnExport">書き出してコピー</button>
+      <button class="small ghost" id="btnImport">読み込む</button>
+    </div>
+  </div>
+
+  <h2>このアプリについて</h2>
+  <div class="card" style="font-size:.82rem;color:var(--muted);">
+    <p>データはすべてこの端末の中（ブラウザ）だけに保存され、外部には送信されません。ルート案内はGoogleマップに引き継いで表示します。学校名は2026年時点の公開情報をもとにしています。<br>つくる手帖</p>
+  </div>
+</section>
+
+</main>
+
+<nav id="tabbar">
+  <button data-tab="today" class="on"><span class="ic">🚐</span>今日</button>
+  <button data-tab="route"><span class="ic">🗺</span>ルート</button>
+  <button data-tab="school"><span class="ic">🏫</span>学校</button>
+  <button data-tab="setting"><span class="ic">⚙︎</span>設定</button>
+</nav>
+
+<!-- 学校 追加・編集ダイアログ -->
+<dialog id="dlgSchool">
+  <h2 style="margin-top:0;" id="dlgSchoolTitle">学校を追加</h2>
+  <label class="fld" for="scName">学校名</label>
+  <input id="scName" placeholder="例：和泉市立○○小学校">
+  <label class="fld" for="scKind">区分</label>
+  <select id="scKind">
+    <option value="小">小学校</option>
+    <option value="中">中学校</option>
+    <option value="義">義務教育学校</option>
+    <option value="支">支援学校</option>
+    <option value="他">その他</option>
+  </select>
+  <label class="fld" for="scAddr">住所（省略可・地図検索の精度が上がります）</label>
+  <input id="scAddr" placeholder="例：大阪府和泉市○○町○-○">
+  <label class="fld" for="scGeo">緯度,経度（省略可）</label>
+  <input id="scGeo" placeholder="例：34.4839, 135.4256" inputmode="decimal">
+  <p class="note">Googleマップで学校を長押しすると座標が出ます。同時刻の学校を近い順に並べるときに使います。</p>
+  <label class="fld" for="scTime">いつものお迎え時刻</label>
+  <input id="scTime" type="time" value="15:00" style="width:130px;">
+  <div class="row" style="margin-top:14px;">
+    <button class="ghost" id="btnSchoolCancel">やめる</button>
+    <button class="verm" id="btnSchoolDelete" style="display:none;">削除</button>
+    <button id="btnSchoolSave">保存する</button>
+  </div>
+</dialog>
+
+<!-- 読み込みダイアログ -->
+<dialog id="dlgImport">
+  <h2 style="margin-top:0;">データの読み込み</h2>
+  <p class="note">「書き出してコピー」で作った文をここに貼り付けてください。今のデータは置き換わります。</p>
+  <textarea id="importText" placeholder="ここに貼り付け"></textarea>
+  <div class="row" style="margin-top:12px;">
+    <button class="ghost" id="btnImportCancel">やめる</button>
+    <button class="verm" id="btnImportDo">読み込んで置き換える</button>
+  </div>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+/* ============ おむかえルート帖 ============ */
+const STORE_KEY = 'omukae-techo-v1';
+const KIND_LABEL = {'小':'小','中':'中','義':'義','支':'支援','他':'他'};
+
+/* --- 初期学校リスト（和泉市 2026年時点の公開情報） --- */
+function presetSchools(){
+  const es = ['国府','和気','伯太','池上','黒鳥','芦部','北池田','いぶき野','南池田','緑ケ丘',
+              '青葉はつが野','北松尾','南松尾','横山','南横山','幸','信太','鶴山台北','鶴山台南',
+              '光明台北','光明台南'];
+  const jhs = ['和泉','郷荘','石尾','北池田','南池田','光明台','槇尾','富秋','信太'];
+  const list = [];
+  let n = 0;
+  const mk = (name, kind, addr) => list.push({id:'p'+(++n), name, kind, addr:addr||'', lat:null, lng:null, time:'15:00'});
+  es.forEach(s => mk('和泉市立'+s+'小学校','小'));
+  jhs.forEach(s => mk('和泉市立'+s+'中学校','中'));
+  mk('和泉市立南松尾はつが野学園','義','大阪府和泉市はつが野6丁目45-1');
+  mk('大阪府立和泉支援学校','支','大阪府和泉市池上町2-4-6');
+  mk('大阪府立泉北高等支援学校','支');
+  return list;
+}
+
+/* --- 状態 --- */
+let state = load();
+function load(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(raw){
+      const s = JSON.parse(raw);
+      if(s && Array.isArray(s.schools)) return s;
+    }
+  }catch(e){}
+  return {
+    facility:{name:'', addr:'', dep:'14:30'},
+    schools: presetSchools(),
+    picks:{},            // id -> {on, time, memo}
+    order:[],            // 計算後の並び（id配列）
+    filter:'all',
+    seq: 1000
+  };
+}
+function save(){
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+  catch(e){ toast('保存できませんでした'); }
+}
+
+/* --- ユーティリティ --- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(msg){
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast._tm); toast._tm = setTimeout(()=>t.classList.remove('show'), 1800);
+}
+function todayLabel(){
+  const d = new Date();
+  const w = ['日','月','火','水','木','金','土'][d.getDay()];
+  return (d.getMonth()+1)+'月'+d.getDate()+'日('+w+')';
+}
+function copyText(text){
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    return navigator.clipboard.writeText(text).then(()=>true).catch(()=>fallbackCopy(text));
+  }
+  return Promise.resolve(fallbackCopy(text));
+}
+function fallbackCopy(text){
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+  document.body.appendChild(ta); ta.select();
+  let ok = false;
+  try{ ok = document.execCommand('copy'); }catch(e){}
+  document.body.removeChild(ta);
+  return ok;
+}
+function haversine(a, b){
+  const R = 6371, rad = x => x*Math.PI/180;
+  const dLat = rad(b.lat-a.lat), dLng = rad(b.lng-a.lng);
+  const h = Math.sin(dLat/2)**2 + Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dLng/2)**2;
+  return 2*R*Math.asin(Math.sqrt(h));
+}
+function schoolById(id){ return state.schools.find(s=>s.id===id); }
+function mapQuery(s){
+  if(s.lat!=null && s.lng!=null) return s.lat+','+s.lng;
+  if(s.addr) return s.addr;
+  return s.name;
+}
+function facilityQuery(){
+  return state.facility.addr || state.facility.name || '現在地';
+}
+
+/* --- タブ --- */
+document.querySelectorAll('#tabbar button').forEach(b=>{
+  b.addEventListener('click', ()=>showTab(b.dataset.tab));
+});
+function showTab(name){
+  document.querySelectorAll('#tabbar button').forEach(b=>b.classList.toggle('on', b.dataset.tab===name));
+  document.querySelectorAll('section.tab').forEach(s=>s.classList.toggle('active', s.id==='tab-'+name));
+  window.scrollTo(0,0);
+}
+
+/* ============ ①今日のお迎え ============ */
+const KIND_FILTERS = [['all','すべて'],['小','小学校'],['中','中学校'],['支','支援学校']];
+function renderFilter(){
+  $('#kindFilter').innerHTML = KIND_FILTERS.map(([k,l])=>
+    '<button data-k="'+k+'" class="'+(state.filter===k?'on':'')+'">'+l+'</button>').join('');
+  document.querySelectorAll('#kindFilter button').forEach(b=>{
+    b.addEventListener('click', ()=>{ state.filter=b.dataset.k; save(); renderFilter(); renderPicks(); });
+  });
+}
+function pickOf(id){
+  if(!state.picks[id]) state.picks[id] = {on:false, time:null, memo:''};
+  return state.picks[id];
+}
+function renderPicks(){
+  $('#todayDate').textContent = todayLabel();
+  const box = $('#pickList');
+  const f = state.filter;
+  const shown = state.schools.filter(s=> f==='all' ? true : (f==='中' ? (s.kind==='中'||s.kind==='義') : s.kind===f));
+  if(shown.length===0){ box.innerHTML = '<div class="empty">学校タブから学校を追加してください</div>'; }
+  else{
+    box.innerHTML = shown.map(s=>{
+      const p = pickOf(s.id);
+      const t = p.time || s.time || '15:00';
+      return '<div class="pick'+(p.on?' on':'')+'" data-id="'+s.id+'">'
+        +'<button class="tgl" aria-label="お迎え切替">'+(p.on?'✓':'＋')+'</button>'
+        +'<div class="nm"><div class="n1"><span class="kindtag'+(s.kind==='支'?' k支':'')+'">'+KIND_LABEL[s.kind]+'</span>'+esc(shortName(s.name))+'</div>'
+        +'<input class="memo" placeholder="メモ（人数・名前など）" value="'+esc(p.memo)+'"'+(p.on?'':' style="display:none;"')+'></div>'
+        +'<input class="tm" type="time" value="'+t+'"'+(p.on?'':' style="visibility:hidden;"')+'>'
+        +'</div>';
+    }).join('');
+    box.querySelectorAll('.pick').forEach(el=>{
+      const id = el.dataset.id;
+      el.querySelector('.tgl').addEventListener('click', ()=>{
+        const p = pickOf(id);
+        p.on = !p.on;
+        if(p.on && !p.time){ const s=schoolById(id); p.time = (s&&s.time)||'15:00'; }
+        save(); renderPicks();
+      });
+      el.querySelector('.tm').addEventListener('change', e=>{ pickOf(id).time = e.target.value; save(); });
+      el.querySelector('.memo').addEventListener('change', e=>{ pickOf(id).memo = e.target.value; save(); });
+    });
+  }
+  const cnt = state.schools.filter(s=>pickOf(s.id).on).length;
+  $('#pickCount').textContent = 'お迎え '+cnt+' 校';
+  $('#btnBuild').disabled = cnt===0;
+}
+function shortName(name){
+  return name.replace(/^和泉市立/,'').replace(/^大阪府立/,'');
+}
+$('#btnClearPicks').addEventListener('click', ()=>{
+  Object.values(state.picks).forEach(p=>p.on=false);
+  state.order = [];
+  save(); renderPicks(); renderRoute();
+});
+
+/* ============ ルート計算 ============ */
+$('#btnBuild').addEventListener('click', ()=>{
+  buildOrder();
+  save();
+  renderRoute();
+  showTab('route');
+});
+function buildOrder(){
+  const items = state.schools
+    .filter(s => state.picks[s.id] && state.picks[s.id].on)
+    .map(s => ({id:s.id, time:(state.picks[s.id].time || s.time || '15:00')}));
+  items.sort((a,b)=> a.time.localeCompare(b.time));
+  // 同時刻グループ内は、座標があれば直前地点から近い順に
+  const result = [];
+  let i = 0, prev = null;
+  while(i < items.length){
+    let j = i;
+    while(j < items.length && items[j].time === items[i].time) j++;
+    let group = items.slice(i, j);
+    if(group.length > 1 && group.every(g=>{const s=schoolById(g.id); return s && s.lat!=null && s.lng!=null;})){
+      const ordered = [];
+      let cur = prev; // {lat,lng} or null
+      const pool = group.slice();
+      while(pool.length){
+        let bi = 0;
+        if(cur){
+          let bd = Infinity;
+          pool.forEach((g,k)=>{
+            const s = schoolById(g.id);
+            const d = haversine(cur, s);
+            if(d < bd){ bd = d; bi = k; }
+          });
+        }
+        const pickd = pool.splice(bi,1)[0];
+        ordered.push(pickd);
+        const s = schoolById(pickd.id);
+        cur = {lat:s.lat, lng:s.lng};
+      }
+      group = ordered;
+    }
+    group.forEach(g=>result.push(g.id));
+    const last = schoolById(group[group.length-1].id);
+    if(last && last.lat!=null && last.lng!=null) prev = {lat:last.lat, lng:last.lng};
+    i = j;
+  }
+  state.order = result;
+}
+
+/* ============ ②ルート表示 ============ */
+function renderRoute(){
+  const box = $('#routeArea');
+  const ids = (state.order||[]).filter(id=>{
+    const s = schoolById(id); return s && state.picks[id] && state.picks[id].on;
+  });
+  if(ids.length===0){
+    box.innerHTML = '<div class="empty">「今日」のタブで学校を選んで<br>「ルートを組み立てる」を押してください</div>';
+    return;
+  }
+  const facName = state.facility.name || '事業所';
+  let html = '';
+  html += stopHtml('発', state.facility.dep||'', facName, '', true);
+  ids.forEach((id, idx)=>{
+    const s = schoolById(id), p = state.picks[id];
+    html += '<div class="leg"><span>┋</span></div>';
+    html += '<div class="stop" data-id="'+id+'">'
+      +'<div class="no">'+(idx+1)+'</div>'
+      +'<div class="bd"><span class="t">'+esc(p.time||'')+'</span> <span class="s">'+esc(shortName(s.name))+'</span>'
+      +(p.memo?'<div class="m">'+esc(p.memo)+'</div>':'')
+      +'</div>'
+      +'<div class="mv">'
+      +'<button data-mv="-1" '+(idx===0?'disabled':'')+'>▲</button>'
+      +'<button data-mv="1" '+(idx===ids.length-1?'disabled':'')+'>▼</button>'
+      +'</div></div>';
+  });
+  html += '<div class="leg"><span>┋</span></div>';
+  html += stopHtml('着', '', facName + ' にもどる', '', true);
+
+  const urls = buildMapUrls(ids);
+  html += '<div id="routeButtons" style="margin-top:14px;">';
+  urls.forEach((u, k)=>{
+    const lbl = urls.length>1 ? 'Googleマップで開く（'+(k+1)+'／'+urls.length+'）' : 'Googleマップで開く';
+    html += '<a href="'+esc(u)+'" target="_blank" rel="noopener">🗺 '+lbl+'</a>';
+  });
+  html += '</div>';
+  if(urls.length>1){
+    html += '<p class="note">Googleマップは一度に通れる地点数に上限があるため、ルートを分けています。順番につないでください。</p>';
+  }
+  html += '<div class="row" style="margin-top:4px;">'
+        +'<button class="ghost" id="btnCopyPlan">ルート文をコピー</button>'
+        +(navigator.share?'<button class="ghost" id="btnSharePlan">共有（LINEなど）</button>':'')
+        +'</div>';
+  box.innerHTML = html;
+
+  box.querySelectorAll('.stop .mv button').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const id = b.closest('.stop').dataset.id;
+      moveStop(id, parseInt(b.dataset.mv,10));
+    });
+  });
+  const cp = $('#btnCopyPlan');
+  if(cp) cp.addEventListener('click', ()=>{
+    copyText(planText(ids)).then(ok=> toast(ok!==false?'コピーしました':'コピーできませんでした'));
+  });
+  const sh = $('#btnSharePlan');
+  if(sh) sh.addEventListener('click', ()=>{
+    navigator.share({text: planText(ids)}).catch(()=>{});
+  });
+}
+function stopHtml(no, time, name, memo){
+  return '<div class="stop term"><div class="no">'+no+'</div>'
+    +'<div class="bd">'+(time?'<span class="t">'+esc(time)+'</span> ':'')+'<span class="s">'+esc(name)+'</span>'
+    +(memo?'<div class="m">'+esc(memo)+'</div>':'')+'</div></div>';
+}
+function moveStop(id, dir){
+  const ids = state.order;
+  const i = ids.indexOf(id);
+  const j = i + dir;
+  if(i<0 || j<0 || j>=ids.length) return;
+  [ids[i], ids[j]] = [ids[j], ids[i]];
+  save(); renderRoute();
+}
+function buildMapUrls(ids){
+  const MAXW = 9; // Googleマップの経由地上限
+  const fac = facilityQuery();
+  const pts = ids.map(id => mapQuery(schoolById(id)));
+  const all = [fac, ...pts, fac];  // 出発→各校→帰着
+  const urls = [];
+  let start = 0;
+  while(start < all.length-1){
+    const end = Math.min(start + MAXW + 1, all.length - 1);
+    const origin = all[start];
+    const dest = all[end];
+    const way = all.slice(start+1, end);
+    let u = 'https://www.google.com/maps/dir/?api=1'
+      +'&origin='+encodeURIComponent(origin)
+      +'&destination='+encodeURIComponent(dest)
+      +'&travelmode=driving';
+    if(way.length) u += '&waypoints='+way.map(encodeURIComponent).join('%7C');
+    urls.push(u);
+    start = end;
+  }
+  return urls;
+}
+function planText(ids){
+  const lines = [];
+  lines.push('【お迎えルート】'+todayLabel());
+  lines.push('出発 '+(state.facility.dep||'')+' '+(state.facility.name||'事業所'));
+  ids.forEach((id, i)=>{
+    const s = schoolById(id), p = state.picks[id];
+    lines.push('①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳'.charAt(i<20?i:19)+' '+(p.time||'')+' '+shortName(s.name)+(p.memo?'（'+p.memo+'）':''));
+  });
+  lines.push('帰着 '+(state.facility.name||'事業所'));
+  const urls = buildMapUrls(ids);
+  lines.push('▼Googleマップ');
+  urls.forEach(u=>lines.push(u));
+  return lines.join('\n');
+}
+
+/* ============ ③学校マスタ ============ */
+const KIND_ORDER = {'小':1,'中':2,'義':3,'支':4,'他':5};
+function renderSchools(){
+  const box = $('#schoolList');
+  const list = state.schools.slice().sort((a,b)=>
+    (KIND_ORDER[a.kind]||9)-(KIND_ORDER[b.kind]||9) || a.name.localeCompare(b.name,'ja'));
+  if(list.length===0){ box.innerHTML = '<div class="empty">学校がありません。「＋ 学校を追加」から登録してください。</div>'; return; }
+  box.innerHTML = list.map(s=>
+    '<div class="sch" data-id="'+s.id+'">'
+    +'<span class="kindtag'+(s.kind==='支'?' k支':'')+'">'+KIND_LABEL[s.kind]+'</span>'
+    +'<div class="nm">'+esc(s.name)
+    +'<div class="ad">'+esc(s.addr || '')+(s.lat!=null?' ｜ 座標あり':'')+' ｜ '+esc(s.time||'')+'</div></div>'
+    +'<button class="small ghost shrink" data-act="edit">編集</button>'
+    +'</div>').join('');
+  box.querySelectorAll('.sch [data-act="edit"]').forEach(b=>{
+    b.addEventListener('click', ()=> openSchoolDialog(b.closest('.sch').dataset.id));
+  });
+}
+let editingId = null;
+$('#btnAddSchool').addEventListener('click', ()=> openSchoolDialog(null));
+function openSchoolDialog(id){
+  editingId = id;
+  const s = id ? schoolById(id) : null;
+  $('#dlgSchoolTitle').textContent = s ? '学校を編集' : '学校を追加';
+  $('#scName').value = s ? s.name : '';
+  $('#scKind').value = s ? s.kind : '小';
+  $('#scAddr').value = s ? s.addr : '';
+  $('#scGeo').value = (s && s.lat!=null) ? (s.lat+', '+s.lng) : '';
+  $('#scTime').value = (s && s.time) || '15:00';
+  $('#btnSchoolDelete').style.display = s ? '' : 'none';
+  $('#dlgSchool').showModal();
+}
+$('#btnSchoolCancel').addEventListener('click', ()=> $('#dlgSchool').close());
+$('#btnSchoolSave').addEventListener('click', ()=>{
+  const name = $('#scName').value.trim();
+  if(!name){ toast('学校名を入れてください'); return; }
+  let lat = null, lng = null;
+  const geo = $('#scGeo').value.trim();
+  if(geo){
+    const m = geo.match(/(-?\d+(?:\.\d+)?)[,\s]+(-?\d+(?:\.\d+)?)/);
+    if(m){ lat = parseFloat(m[1]); lng = parseFloat(m[2]); }
+    else { toast('座標は「34.48, 135.42」の形で'); return; }
+  }
+  const data = {name, kind:$('#scKind').value, addr:$('#scAddr').value.trim(), lat, lng, time:$('#scTime').value||'15:00'};
+  if(editingId){
+    Object.assign(schoolById(editingId), data);
+  }else{
+    state.seq = (state.seq||1000)+1;
+    state.schools.push(Object.assign({id:'u'+state.seq}, data));
+  }
+  save(); renderSchools(); renderPicks();
+  $('#dlgSchool').close();
+  toast('保存しました');
+});
+$('#btnSchoolDelete').addEventListener('click', ()=>{
+  if(!editingId) return;
+  const s = schoolById(editingId);
+  if(!confirm('「'+s.name+'」を削除しますか？')) return;
+  state.schools = state.schools.filter(x=>x.id!==editingId);
+  delete state.picks[editingId];
+  state.order = state.order.filter(x=>x!==editingId);
+  save(); renderSchools(); renderPicks(); renderRoute();
+  $('#dlgSchool').close();
+  toast('削除しました');
+});
+
+/* ============ ④設定 ============ */
+function renderSettings(){
+  $('#facName').value = state.facility.name || '';
+  $('#facAddr').value = state.facility.addr || '';
+  $('#facDep').value = state.facility.dep || '14:30';
+}
+$('#facName').addEventListener('change', e=>{ state.facility.name = e.target.value.trim(); save(); });
+$('#facAddr').addEventListener('change', e=>{ state.facility.addr = e.target.value.trim(); save(); });
+$('#facDep').addEventListener('change', e=>{ state.facility.dep = e.target.value; save(); });
+
+$('#btnExport').addEventListener('click', ()=>{
+  const text = 'おむかえルート帖データ\n' + JSON.stringify(state);
+  copyText(text).then(ok=> toast(ok!==false?'コピーしました。メモ等に貼って保存を':'コピーできませんでした'));
+});
+$('#btnImport').addEventListener('click', ()=>{ $('#importText').value=''; $('#dlgImport').showModal(); });
+$('#btnImportCancel').addEventListener('click', ()=> $('#dlgImport').close());
+$('#btnImportDo').addEventListener('click', ()=>{
+  const raw = $('#importText').value;
+  const i = raw.indexOf('{');
+  if(i<0){ toast('データが見つかりません'); return; }
+  try{
+    const s = JSON.parse(raw.slice(i));
+    if(!s || !Array.isArray(s.schools)) throw 0;
+    state = s;
+    save();
+    renderAll();
+    $('#dlgImport').close();
+    toast('読み込みました');
+  }catch(e){ toast('読み込めませんでした'); }
+});
+
+/* ============ 初期化 ============ */
+function renderAll(){
+  renderFilter(); renderPicks(); renderRoute(); renderSchools(); renderSettings();
+}
+renderAll();
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
