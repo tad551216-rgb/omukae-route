@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>おむかえルート帖 | つくる手帖</title>
-<meta name="description" content="放課後等デイサービスのお迎えルートを時刻順に組み立てて、Googleマップのルートリンクを作るツール。データは端末の中だけに保存されます。">
+<meta name="description" content="放課後等デイサービスのお迎えルートづくり。車両と人数を登録して同時刻のお迎えを自動配車し、遅延見込みも表示。データは端末の中だけに保存されます。">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#2c5077">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -93,7 +93,7 @@ nav#tabbar button.on{color:var(--verm);font-weight:700;}
 
 /* 今日のお迎え */
 .pick{
-  display:flex;align-items:center;gap:8px;background:var(--card);
+  display:flex;align-items:center;gap:7px;background:var(--card);
   border:1px solid var(--line);border-radius:9px;padding:8px 9px;margin-bottom:7px;
 }
 .pick.on{border-color:var(--indigo);background:#fff;}
@@ -106,38 +106,65 @@ nav#tabbar button.on{color:var(--verm);font-weight:700;}
 .pick .nm{flex:1;min-width:0;}
 .pick .nm .n1{font-size:.9rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .pick .nm input.memo{border:none;border-bottom:1px dashed var(--line);border-radius:0;padding:1px 2px;font-size:.78rem;background:transparent;}
-.pick input.tm{flex:0 0 92px;text-align:center;font-variant-numeric:tabular-nums;}
+.pick input.tm{flex:0 0 88px;text-align:center;font-variant-numeric:tabular-nums;padding:8px 4px;}
+.pick input.num{flex:0 0 52px;text-align:center;padding:8px 2px;}
+.pick .unit{flex:0 0 auto;font-size:.72rem;color:var(--muted);}
 .kindtag{font-size:.62rem;color:#fff;background:var(--indigo);border-radius:4px;padding:1px 5px;margin-right:4px;vertical-align:1px;}
 .kindtag.k支{background:var(--verm);}
 .filterbar{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;}
 .filterbar button{background:#fff;color:var(--indigo);border:1.5px solid var(--line);font-size:.78rem;padding:5px 12px;border-radius:99px;}
 .filterbar button.on{background:var(--indigo);color:#fff;border-color:var(--indigo);}
+.bulkbar{display:flex;gap:6px;align-items:center;margin:2px 0 12px;flex-wrap:wrap;font-size:.8rem;color:var(--indigo);}
+.bulkbar button{background:#fff;color:var(--verm);border:1.5px solid var(--verm);font-size:.85rem;padding:6px 13px;border-radius:99px;font-weight:700;}
+.bulkbar input{width:96px;flex:0 0 auto;text-align:center;}
 
 /* ルート */
+.vhead{
+  display:flex;align-items:baseline;gap:8px;background:var(--indigo);color:#fdfaf0;
+  border-radius:9px 9px 0 0;padding:8px 12px;margin-top:14px;
+}
+.vhead .vn{font-weight:700;letter-spacing:.06em;}
+.vhead .vc{font-size:.76rem;opacity:.85;flex:1;}
+.vhead .vd{font-size:.78rem;font-weight:700;}
+.vhead .vd.late{color:#ffd9cf;}
+.vbody{border:1px solid var(--line);border-top:none;border-radius:0 0 9px 9px;background:var(--card);padding:9px 9px 4px;margin-bottom:4px;}
+.vtime{
+  font-size:.88rem;font-weight:700;color:var(--indigo);font-variant-numeric:tabular-nums;
+  background:#fff;border:1.5px dashed var(--indigo);border-radius:8px;
+  padding:6px 10px;margin-bottom:8px;text-align:center;letter-spacing:.03em;
+}
 .stop{
-  display:flex;gap:9px;align-items:flex-start;background:var(--card);
-  border:1px solid var(--line);border-radius:9px;padding:9px 10px;margin-bottom:0;
+  display:flex;gap:9px;align-items:flex-start;background:#fff;
+  border:1px solid var(--line);border-radius:9px;padding:8px 9px;
 }
 .stop .no{
-  flex:0 0 30px;height:30px;border-radius:50%;background:var(--verm);color:#fff;
-  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem;margin-top:2px;
+  flex:0 0 28px;height:28px;border-radius:50%;background:var(--verm);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;margin-top:2px;
 }
-.stop.term .no{background:var(--indigo);font-size:.68rem;}
+.stop.term{border:none;background:transparent;padding:5px 9px;}
+.stop.term .no{background:var(--indigo);font-size:.66rem;}
 .stop .bd{flex:1;min-width:0;}
 .stop .bd .t{font-weight:700;color:var(--indigo);font-variant-numeric:tabular-nums;}
-.stop .bd .s{font-size:.92rem;}
-.stop .bd .m{font-size:.76rem;color:var(--muted);}
-.stop .mv{flex:0 0 auto;display:flex;flex-direction:column;gap:4px;}
+.stop .bd .s{font-size:.9rem;}
+.stop .bd .m{font-size:.74rem;color:var(--muted);}
+.stop .bd .eta{font-size:.78rem;color:var(--muted);font-variant-numeric:tabular-nums;}
+.stop .bd .eta b.late{color:var(--verm);}
+.stop .bd .warn{font-size:.76rem;color:var(--verm);font-weight:700;}
+.stop .mv{flex:0 0 auto;display:flex;flex-direction:column;gap:4px;align-items:flex-end;}
+.stop .mv .ud{display:flex;gap:4px;}
 .stop .mv button{background:#fff;color:var(--indigo);border:1.5px solid var(--line);width:34px;height:26px;padding:0;font-size:.85rem;border-radius:6px;}
-.leg{display:flex;justify-content:center;padding:1px 0;}
-.leg span{color:var(--verm);font-size:.9rem;line-height:1;letter-spacing:0;}
-#routeButtons a{
+.stop .mv select{font-size:.72rem;padding:3px 4px;width:auto;border-radius:6px;}
+.leg{display:flex;justify-content:center;padding:0;}
+.leg span{color:var(--verm);font-size:.85rem;line-height:1.05;}
+.vfoot{font-size:.78rem;color:var(--muted);padding:5px 4px 6px;font-variant-numeric:tabular-nums;}
+#routeButtons a, a.mapbtn{
   display:block;text-align:center;background:var(--indigo);color:#fff;text-decoration:none;
-  border-radius:8px;padding:13px;font-size:1rem;letter-spacing:.08em;margin-bottom:8px;
+  border-radius:8px;padding:12px;font-size:.95rem;letter-spacing:.06em;margin:8px 0 2px;
 }
-#routeButtons a:active{transform:translateY(1px);}
+a.mapbtn:active{transform:translateY(1px);}
+.sumline{font-size:.82rem;color:var(--indigo);margin-top:10px;}
 
-/* 学校マスタ */
+/* 学校・車両マスタ */
 .sch{
   display:flex;align-items:center;gap:8px;background:var(--card);
   border:1px solid var(--line);border-radius:9px;padding:8px 10px;margin-bottom:7px;
@@ -171,45 +198,65 @@ textarea{min-height:110px;font-size:.8rem;}
 <!-- ①今日のお迎え -->
 <section class="tab active" id="tab-today">
   <h2>今日のお迎え <span id="todayDate" style="font-weight:400;color:var(--muted);font-size:.8rem;"></span></h2>
-  <p class="note">お迎えに行く学校をタップして選び、時刻を確認します。メモ欄には児童の人数や名前など。</p>
+  <p class="note">お迎えに行く学校をタップして選び、下校時刻と乗る人数を入れます。メモには児童の名前など。</p>
+  <div class="bulkbar">
+    <span>選んだ学校の時刻を一括で：</span>
+    <button data-bt="13:15">13:15</button>
+    <button data-bt="13:45">13:45</button>
+    <input type="time" id="bulkTime" value="15:00">
+    <button data-bt="">適用</button>
+  </div>
   <div class="filterbar" id="kindFilter"></div>
   <div id="pickList"></div>
   <div class="row" style="margin:12px 0;">
     <button class="ghost small shrink" id="btnClearPicks">選択をすべて解除</button>
     <div style="text-align:right;font-size:.85rem;color:var(--indigo);" id="pickCount"></div>
   </div>
-  <button class="wide verm" id="btnBuild">ルートを組み立てる</button>
+  <button class="wide verm" id="btnBuild">配車してルートを組む</button>
 </section>
 
 <!-- ②ルート -->
 <section class="tab" id="tab-route">
-  <h2>お迎えルート</h2>
+  <h2>配車とルート</h2>
   <div id="routeArea"></div>
 </section>
 
 <!-- ③学校マスタ -->
 <section class="tab" id="tab-school">
   <h2>学校のリスト</h2>
-  <p class="note">和泉市立の小・中学校、義務教育学校、和泉支援学校をあらかじめ登録しています。使わない学校は削除して、実際にお迎えのある学校だけに絞ると使いやすくなります。</p>
+  <p class="note">和泉市立の小・中学校、義務教育学校、和泉支援学校をあらかじめ登録しています。使わない学校は削除して、実際にお迎えのある学校だけに絞ると使いやすくなります。緯度・経度を登録すると、移動時間と遅延の見込みが正確になります。</p>
   <button class="small" id="btnAddSchool">＋ 学校を追加</button>
   <div id="schoolList" style="margin-top:10px;"></div>
 </section>
 
 <!-- ④設定 -->
 <section class="tab" id="tab-setting">
+  <h2>車両（送迎車）</h2>
+  <p class="note">車の名前と乗車できる人数（運転手・添乗員を除いた児童の席数）を登録します。</p>
+  <button class="small" id="btnAddVehicle">＋ 車を追加</button>
+  <div id="vehicleList" style="margin-top:10px;"></div>
+
   <h2>事業所（出発・帰着地点）</h2>
   <div class="card">
     <label class="fld" for="facName">事業所の名前</label>
     <input id="facName" placeholder="例：放課後デイ ○○">
     <label class="fld" for="facAddr">住所（Googleマップで検索できる書き方）</label>
     <input id="facAddr" placeholder="例：大阪府和泉市府中町○丁目○-○">
-    <label class="fld" for="facDep">出発時刻（目安）</label>
-    <input id="facDep" type="time" value="14:30" style="width:130px;">
+    <label class="fld" for="facGeo">緯度,経度（省略可・遅延見込みが正確になります）</label>
+    <input id="facGeo" placeholder="例：34.4839, 135.4256" inputmode="decimal">
   </div>
 
-  <h2>ルートの並べ方</h2>
-  <div class="card" style="font-size:.85rem;">
-    <p>お迎え時刻の早い順に並べます。同じ時刻の学校が続くときは、緯度・経度が登録してあれば近い順に並べ替えます。並び順はルート画面の ▲▼ でいつでも手直しできます。</p>
+  <h2>移動時間の見積もり</h2>
+  <div class="card">
+    <label class="fld" for="setLeg">座標が未登録の区間の移動時間（分）</label>
+    <input id="setLeg" type="number" min="1" max="60" inputmode="numeric" style="width:110px;">
+    <label class="fld" for="setSpeed">平均時速（座標が登録済みの区間・km/h）</label>
+    <input id="setSpeed" type="number" min="5" max="60" inputmode="numeric" style="width:110px;">
+    <label class="fld" for="setBoard">1校あたりの乗車にかかる時間（分）</label>
+    <input id="setBoard" type="number" min="0" max="30" inputmode="numeric" style="width:110px;">
+    <label class="fld" for="setGap">別便とみなす時刻の差（分）</label>
+    <input id="setGap" type="number" min="5" max="120" inputmode="numeric" style="width:110px;">
+    <p class="note" style="margin-bottom:0;">下校時刻がこの差以上離れていると（例：13:15便と13:45便）、いったん事業所に戻って降ろしてから次の便に向かう想定で計算します。</p>
   </div>
 
   <h2>データの控え（書き出し・読み込み）</h2>
@@ -223,7 +270,7 @@ textarea{min-height:110px;font-size:.8rem;}
 
   <h2>このアプリについて</h2>
   <div class="card" style="font-size:.82rem;color:var(--muted);">
-    <p>データはすべてこの端末の中（ブラウザ）だけに保存され、外部には送信されません。ルート案内はGoogleマップに引き継いで表示します。学校名は2026年時点の公開情報をもとにしています。<br>つくる手帖</p>
+    <p>データはすべてこの端末の中（ブラウザ）だけに保存され、外部には送信されません。到着・遅延は直線距離などからの目安で、実際の道路事情により前後します。ルート案内はGoogleマップに引き継いで表示します。<br>つくる手帖</p>
   </div>
 </section>
 
@@ -253,13 +300,27 @@ textarea{min-height:110px;font-size:.8rem;}
   <input id="scAddr" placeholder="例：大阪府和泉市○○町○-○">
   <label class="fld" for="scGeo">緯度,経度（省略可）</label>
   <input id="scGeo" placeholder="例：34.4839, 135.4256" inputmode="decimal">
-  <p class="note">Googleマップで学校を長押しすると座標が出ます。同時刻の学校を近い順に並べるときに使います。</p>
+  <p class="note">Googleマップで学校を長押しすると座標が出ます。移動時間・遅延の見込みと、同時刻の学校の並べ替えに使います。</p>
   <label class="fld" for="scTime">いつものお迎え時刻</label>
   <input id="scTime" type="time" value="15:00" style="width:130px;">
   <div class="row" style="margin-top:14px;">
     <button class="ghost" id="btnSchoolCancel">やめる</button>
     <button class="verm" id="btnSchoolDelete" style="display:none;">削除</button>
     <button id="btnSchoolSave">保存する</button>
+  </div>
+</dialog>
+
+<!-- 車両 追加・編集ダイアログ -->
+<dialog id="dlgVehicle">
+  <h2 style="margin-top:0;" id="dlgVehicleTitle">車を追加</h2>
+  <label class="fld" for="vhName">車の名前</label>
+  <input id="vhName" placeholder="例：ハイエース／軽バン白">
+  <label class="fld" for="vhCap">乗車できる児童の人数</label>
+  <input id="vhCap" type="number" min="1" max="30" inputmode="numeric" style="width:110px;">
+  <div class="row" style="margin-top:14px;">
+    <button class="ghost" id="btnVehicleCancel">やめる</button>
+    <button class="verm" id="btnVehicleDelete" style="display:none;">削除</button>
+    <button id="btnVehicleSave">保存する</button>
   </div>
 </dialog>
 
@@ -278,7 +339,7 @@ textarea{min-height:110px;font-size:.8rem;}
 
 <script>
 'use strict';
-/* ============ おむかえルート帖 ============ */
+/* ============ おむかえルート帖 v2 ============ */
 const STORE_KEY = 'omukae-techo-v1';
 const KIND_LABEL = {'小':'小','中':'中','義':'義','支':'支援','他':'他'};
 
@@ -298,25 +359,35 @@ function presetSchools(){
   mk('大阪府立泉北高等支援学校','支');
   return list;
 }
+const DEFAULT_SETTINGS = {leg:8, speed:25, board:3, gap:20, factor:1.4};
 
 /* --- 状態 --- */
 let state = load();
 function load(){
+  let s = null;
   try{
     const raw = localStorage.getItem(STORE_KEY);
-    if(raw){
-      const s = JSON.parse(raw);
-      if(s && Array.isArray(s.schools)) return s;
-    }
+    if(raw) s = JSON.parse(raw);
   }catch(e){}
-  return {
-    facility:{name:'', addr:'', dep:'14:30'},
-    schools: presetSchools(),
-    picks:{},            // id -> {on, time, memo}
-    order:[],            // 計算後の並び（id配列）
-    filter:'all',
-    seq: 1000
-  };
+  if(!s || !Array.isArray(s.schools)){
+    s = {
+      facility:{name:'', addr:'', lat:null, lng:null},
+      schools: presetSchools(),
+      picks:{},
+      filter:'all',
+      seq: 1000
+    };
+  }
+  // v1 → v2 の穴埋め
+  if(!s.facility) s.facility = {name:'', addr:''};
+  if(!('lat' in s.facility)){ s.facility.lat = null; s.facility.lng = null; }
+  if(!Array.isArray(s.vehicles)) s.vehicles = [];
+  if(!s.settings) s.settings = {};
+  s.settings = Object.assign({}, DEFAULT_SETTINGS, s.settings);
+  if(!s.plan || !Array.isArray(s.plan.assign)) s.plan = {assign:[]}; // assign: [{vid, stops:[schoolId]}]
+  if(!s.picks) s.picks = {};
+  Object.values(s.picks).forEach(p=>{ if(!('num' in p)) p.num = 1; });
+  return s;
 }
 function save(){
   try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
@@ -334,6 +405,12 @@ function todayLabel(){
   const d = new Date();
   const w = ['日','月','火','水','木','金','土'][d.getDay()];
   return (d.getMonth()+1)+'月'+d.getDate()+'日('+w+')';
+}
+function toMin(t){ const m = /^(\d{1,2}):(\d{2})$/.exec(t||''); return m ? (+m[1])*60 + (+m[2]) : null; }
+function toHM(min){
+  min = Math.round(min);
+  const h = Math.floor(min/60)%24, m = ((min%60)+60)%60;
+  return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
 }
 function copyText(text){
   if(navigator.clipboard && navigator.clipboard.writeText){
@@ -357,14 +434,37 @@ function haversine(a, b){
   return 2*R*Math.asin(Math.sqrt(h));
 }
 function schoolById(id){ return state.schools.find(s=>s.id===id); }
+function vehicleById(id){ return state.vehicles.find(v=>v.id===id); }
+function hasGeo(o){ return o && o.lat!=null && o.lng!=null; }
+function facPoint(){ return hasGeo(state.facility) ? {lat:state.facility.lat, lng:state.facility.lng} : null; }
+function legMin(a, b){
+  // a, b: {lat,lng} または null
+  const c = state.settings;
+  if(hasGeo(a) && hasGeo(b)){
+    return Math.max(2, haversine(a,b) * c.factor / c.speed * 60);
+  }
+  return c.leg;
+}
 function mapQuery(s){
-  if(s.lat!=null && s.lng!=null) return s.lat+','+s.lng;
+  if(hasGeo(s)) return s.lat+','+s.lng;
   if(s.addr) return s.addr;
   return s.name;
 }
 function facilityQuery(){
+  if(hasGeo(state.facility)) return state.facility.lat+','+state.facility.lng;
   return state.facility.addr || state.facility.name || '現在地';
 }
+function parseGeo(text){
+  const t = (text||'').trim();
+  if(!t) return {lat:null, lng:null, ok:true};
+  const m = t.match(/(-?\d+(?:\.\d+)?)[,\s]+(-?\d+(?:\.\d+)?)/);
+  if(m) return {lat:parseFloat(m[1]), lng:parseFloat(m[2]), ok:true};
+  return {ok:false};
+}
+function shortName(name){
+  return name.replace(/^和泉市立/,'').replace(/^大阪府立/,'');
+}
+const MARU = '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳';
 
 /* --- タブ --- */
 document.querySelectorAll('#tabbar button').forEach(b=>{
@@ -386,7 +486,8 @@ function renderFilter(){
   });
 }
 function pickOf(id){
-  if(!state.picks[id]) state.picks[id] = {on:false, time:null, memo:''};
+  if(!state.picks[id]) state.picks[id] = {on:false, time:null, memo:'', num:1};
+  if(!('num' in state.picks[id])) state.picks[id].num = 1;
   return state.picks[id];
 }
 function renderPicks(){
@@ -402,8 +503,10 @@ function renderPicks(){
       return '<div class="pick'+(p.on?' on':'')+'" data-id="'+s.id+'">'
         +'<button class="tgl" aria-label="お迎え切替">'+(p.on?'✓':'＋')+'</button>'
         +'<div class="nm"><div class="n1"><span class="kindtag'+(s.kind==='支'?' k支':'')+'">'+KIND_LABEL[s.kind]+'</span>'+esc(shortName(s.name))+'</div>'
-        +'<input class="memo" placeholder="メモ（人数・名前など）" value="'+esc(p.memo)+'"'+(p.on?'':' style="display:none;"')+'></div>'
+        +'<input class="memo" placeholder="メモ（名前など）" value="'+esc(p.memo)+'"'+(p.on?'':' style="display:none;"')+'></div>'
         +'<input class="tm" type="time" value="'+t+'"'+(p.on?'':' style="visibility:hidden;"')+'>'
+        +'<input class="num" type="number" min="0" max="30" inputmode="numeric" value="'+(p.num||1)+'"'+(p.on?'':' style="visibility:hidden;"')+'>'
+        +'<span class="unit"'+(p.on?'':' style="visibility:hidden;"')+'>名</span>'
         +'</div>';
     }).join('');
     box.querySelectorAll('.pick').forEach(el=>{
@@ -415,148 +518,303 @@ function renderPicks(){
         save(); renderPicks();
       });
       el.querySelector('.tm').addEventListener('change', e=>{ pickOf(id).time = e.target.value; save(); });
+      el.querySelector('.num').addEventListener('change', e=>{ pickOf(id).num = Math.max(0, parseInt(e.target.value,10)||0); save(); });
       el.querySelector('.memo').addEventListener('change', e=>{ pickOf(id).memo = e.target.value; save(); });
     });
   }
-  const cnt = state.schools.filter(s=>pickOf(s.id).on).length;
-  $('#pickCount').textContent = 'お迎え '+cnt+' 校';
-  $('#btnBuild').disabled = cnt===0;
+  const sel = state.schools.filter(s=>pickOf(s.id).on);
+  const total = sel.reduce((a,s)=>a+(pickOf(s.id).num||0), 0);
+  $('#pickCount').textContent = 'お迎え '+sel.length+' 校 ・ '+total+' 名';
+  $('#btnBuild').disabled = sel.length===0;
 }
-function shortName(name){
-  return name.replace(/^和泉市立/,'').replace(/^大阪府立/,'');
-}
+document.querySelectorAll('.bulkbar button').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    const t = b.dataset.bt || $('#bulkTime').value;
+    if(!toMin(t) && toMin(t)!==0){ toast('時刻を入れてください'); return; }
+    let n = 0;
+    state.schools.forEach(s=>{ const p=pickOf(s.id); if(p.on){ p.time=t; n++; } });
+    if(n===0){ toast('先に学校を選んでください'); return; }
+    save(); renderPicks();
+    toast(n+'校を '+t+' にしました');
+  });
+});
 $('#btnClearPicks').addEventListener('click', ()=>{
   Object.values(state.picks).forEach(p=>p.on=false);
-  state.order = [];
+  state.plan = {assign:[]};
   save(); renderPicks(); renderRoute();
 });
 
-/* ============ ルート計算 ============ */
+/* ============ 配車計算 ============ */
+function activeVehicles(){
+  if(state.vehicles.length) return state.vehicles.map(v=>({id:v.id, name:v.name, cap:v.cap}));
+  return [{id:'v0', name:'送迎車', cap:Infinity}]; // 未登録なら1台とみなす
+}
 $('#btnBuild').addEventListener('click', ()=>{
-  buildOrder();
+  buildPlan();
   save();
   renderRoute();
   showTab('route');
 });
-function buildOrder(){
+function buildPlan(){
+  const gap = state.settings.gap;
+  const fac = facPoint();
   const items = state.schools
     .filter(s => state.picks[s.id] && state.picks[s.id].on)
-    .map(s => ({id:s.id, time:(state.picks[s.id].time || s.time || '15:00')}));
-  items.sort((a,b)=> a.time.localeCompare(b.time));
-  // 同時刻グループ内は、座標があれば直前地点から近い順に
-  const result = [];
-  let i = 0, prev = null;
-  while(i < items.length){
-    let j = i;
-    while(j < items.length && items[j].time === items[i].time) j++;
-    let group = items.slice(i, j);
-    if(group.length > 1 && group.every(g=>{const s=schoolById(g.id); return s && s.lat!=null && s.lng!=null;})){
-      const ordered = [];
-      let cur = prev; // {lat,lng} or null
-      const pool = group.slice();
-      while(pool.length){
-        let bi = 0;
-        if(cur){
-          let bd = Infinity;
-          pool.forEach((g,k)=>{
-            const s = schoolById(g.id);
-            const d = haversine(cur, s);
-            if(d < bd){ bd = d; bi = k; }
-          });
-        }
-        const pickd = pool.splice(bi,1)[0];
-        ordered.push(pickd);
-        const s = schoolById(pickd.id);
-        cur = {lat:s.lat, lng:s.lng};
+    .map(s => ({id:s.id, t:toMin(state.picks[s.id].time || s.time || '15:00'), num:state.picks[s.id].num||0}))
+    .sort((a,b)=>a.t-b.t);
+  // 便（wave）に分割：前の時刻から gap 分以上あいたら別便
+  const waves = [];
+  items.forEach(it=>{
+    const w = waves[waves.length-1];
+    if(w && it.t - w[0].t < gap) w.push(it);
+    else waves.push([it]);
+  });
+  // 車ごとの状態
+  const vehs = activeVehicles().map(v=>({
+    v, stops:[], pos:fac, ready:-1e9, load:0
+  }));
+  waves.forEach(wave=>{
+    // 便のはじめに全車を事業所へ戻す（降車）
+    vehs.forEach(vs=>{
+      if(vs.stops.length && vs.posMoved){
+        vs.ready = vs.ready + legMin(vs.pos, fac);
       }
-      group = ordered;
+      vs.pos = fac; vs.posMoved = false; vs.load = 0;
+    });
+    // 便内の巡回順：座標がそろっていれば事業所からの方角順（sweep）
+    let group = wave.slice();
+    if(fac && group.every(g=>hasGeo(schoolById(g.id)))){
+      group.sort((a,b)=>{
+        const sa=schoolById(a.id), sb=schoolById(b.id);
+        return Math.atan2(sa.lat-fac.lat, sa.lng-fac.lng) - Math.atan2(sb.lat-fac.lat, sb.lng-fac.lng);
+      });
+      group.sort((a,b)=>a.t-b.t); // 時刻は優先（安定ソート）
     }
-    group.forEach(g=>result.push(g.id));
-    const last = schoolById(group[group.length-1].id);
-    if(last && last.lat!=null && last.lng!=null) prev = {lat:last.lat, lng:last.lng};
-    i = j;
-  }
-  state.order = result;
+    group.forEach(it=>{
+      const s = schoolById(it.id);
+      // 定員に収まる車を候補に。なければ全車（超過警告つき）
+      let cands = vehs.filter(vs => vs.load + it.num <= vs.v.cap);
+      if(cands.length===0) cands = vehs;
+      // 追加したときの遅延が最小の車へ
+      let best = null, bestKey = null;
+      cands.forEach(vs=>{
+        const leg = legMin(vs.pos, s);
+        const depart = Math.max(vs.ready, it.t - leg);
+        const arrive = depart + leg;
+        const delay = Math.max(0, arrive - it.t);
+        const key = [delay, vs.stops.length, vs.load];
+        if(!best || key[0]<bestKey[0] || (key[0]===bestKey[0] && (key[1]<bestKey[1] || (key[1]===bestKey[1] && key[2]<bestKey[2])))){
+          best = vs; bestKey = key;
+        }
+      });
+      const leg = legMin(best.pos, s);
+      const depart = Math.max(best.ready, it.t - leg);
+      const arrive = depart + leg;
+      best.ready = Math.max(arrive, it.t) + state.settings.board;
+      best.pos = hasGeo(s) ? {lat:s.lat, lng:s.lng} : null;
+      best.posMoved = true;
+      best.load += it.num;
+      best.stops.push(it.id);
+    });
+  });
+  state.plan = {assign: vehs.filter(vs=>vs.stops.length).map(vs=>({vid:vs.v.id, stops:vs.stops}))};
+}
+
+/* --- 到着・遅延のシミュレーション（表示用） --- */
+function simulateVehicle(stopIds){
+  const c = state.settings;
+  const fac = facPoint();
+  let pos = fac, ready = -1e9, load = 0, prevT = null;
+  let maxDelay = 0, maxLoad = 0;
+  const out = [];
+  const trips = [];   // 便ごとの {depart, return}
+  let cur = null;
+  stopIds.forEach(id=>{
+    const s = schoolById(id), p = state.picks[id];
+    if(!s || !p) return;
+    const t = toMin(p.time || s.time || '15:00');
+    if(cur && prevT!=null && t - prevT >= c.gap){
+      // 別便：事業所に戻って降車
+      cur.return = ready + legMin(pos, fac);
+      ready = cur.return;
+      pos = fac; load = 0; cur = null;
+    }
+    const leg = legMin(pos, s);
+    const depart = Math.max(ready, t - leg);
+    if(!cur){ cur = {depart, return:null}; trips.push(cur); }
+    const arrive = depart + leg;
+    const delay = Math.max(0, arrive - t);
+    load += (p.num||0);
+    out.push({id, t, num:p.num||0, arrive, delay, load, trip:trips.length});
+    maxDelay = Math.max(maxDelay, delay);
+    maxLoad = Math.max(maxLoad, load);
+    ready = Math.max(arrive, t) + c.board;
+    pos = hasGeo(s) ? {lat:s.lat, lng:s.lng} : null;
+    prevT = t;
+  });
+  if(cur) cur.return = ready + legMin(pos, fac);
+  return {
+    stops: out,
+    trips,
+    firstDepart: trips.length ? trips[0].depart : null,
+    returnAt: trips.length ? trips[trips.length-1].return : null,
+    maxDelay, maxLoad
+  };
 }
 
 /* ============ ②ルート表示 ============ */
+function planEntries(){
+  // 現在有効な assign（選択解除された学校を除外）
+  return (state.plan.assign||[]).map(a=>({
+    vid: a.vid,
+    stops: a.stops.filter(id=>{
+      const s = schoolById(id); return s && state.picks[id] && state.picks[id].on;
+    })
+  })).filter(a=>a.stops.length);
+}
 function renderRoute(){
   const box = $('#routeArea');
-  const ids = (state.order||[]).filter(id=>{
-    const s = schoolById(id); return s && state.picks[id] && state.picks[id].on;
-  });
-  if(ids.length===0){
-    box.innerHTML = '<div class="empty">「今日」のタブで学校を選んで<br>「ルートを組み立てる」を押してください</div>';
+  const plan = planEntries();
+  if(plan.length===0){
+    box.innerHTML = '<div class="empty">「今日」のタブで学校を選んで<br>「配車してルートを組む」を押してください</div>';
     return;
   }
   const facName = state.facility.name || '事業所';
+  const vehNames = {};
+  activeVehicles().forEach(v=>vehNames[v.id]=v);
+  const geoMissing = !facPoint() || plan.some(a=>a.stops.some(id=>!hasGeo(schoolById(id))));
   let html = '';
-  html += stopHtml('発', state.facility.dep||'', facName, '', true);
-  ids.forEach((id, idx)=>{
-    const s = schoolById(id), p = state.picks[id];
-    html += '<div class="leg"><span>┋</span></div>';
-    html += '<div class="stop" data-id="'+id+'">'
-      +'<div class="no">'+(idx+1)+'</div>'
-      +'<div class="bd"><span class="t">'+esc(p.time||'')+'</span> <span class="s">'+esc(shortName(s.name))+'</span>'
-      +(p.memo?'<div class="m">'+esc(p.memo)+'</div>':'')
-      +'</div>'
-      +'<div class="mv">'
-      +'<button data-mv="-1" '+(idx===0?'disabled':'')+'>▲</button>'
-      +'<button data-mv="1" '+(idx===ids.length-1?'disabled':'')+'>▼</button>'
-      +'</div></div>';
-  });
-  html += '<div class="leg"><span>┋</span></div>';
-  html += stopHtml('着', '', facName + ' にもどる', '', true);
+  let grandNum = 0, grandDelay = 0;
 
-  const urls = buildMapUrls(ids);
-  html += '<div id="routeButtons" style="margin-top:14px;">';
-  urls.forEach((u, k)=>{
-    const lbl = urls.length>1 ? 'Googleマップで開く（'+(k+1)+'／'+urls.length+'）' : 'Googleマップで開く';
-    html += '<a href="'+esc(u)+'" target="_blank" rel="noopener">🗺 '+lbl+'</a>';
+  plan.forEach((a, vi)=>{
+    const v = vehNames[a.vid] || {name:'車', cap:Infinity};
+    const sim = simulateVehicle(a.stops);
+    grandNum += sim.stops.reduce((x,st)=>x+st.num,0);
+    grandDelay = Math.max(grandDelay, sim.maxDelay);
+    const capStr = (v.cap===Infinity) ? '' : '定員'+v.cap+'名・';
+    const over = (v.cap!==Infinity) && sim.maxLoad > v.cap;
+    html += '<div class="vhead"><span class="vn">🚐 '+esc(v.name)+'</span>'
+      +'<span class="vc">'+capStr+'最大乗車'+sim.maxLoad+'名'+(over?' ⚠定員超過':'')+'</span>'
+      +'<span class="vd'+(sim.maxDelay>0?' late':'')+'">'+(sim.maxDelay>0?'最大 +'+Math.round(sim.maxDelay)+'分':'遅れなし')+'</span></div>';
+    html += '<div class="vbody">';
+    html += '<div class="vtime">出発 '+(sim.firstDepart!=null?toHM(sim.firstDepart):'--:--')
+      +' ～ 帰着 '+(sim.returnAt!=null?toHM(sim.returnAt):'--:--')+'（自動計算・見込）</div>';
+    let prevTrip = 0;
+    sim.stops.forEach((st, idx)=>{
+      const s = schoolById(st.id), p = state.picks[st.id];
+      if(st.trip !== prevTrip){
+        if(prevTrip > 0){
+          const trPrev = sim.trips[prevTrip-1];
+          html += '<div class="leg"><span>┋</span></div>';
+          html += termHtml('戻', trPrev.return!=null?toHM(trPrev.return):'', facName+' に帰着・降車（見込）');
+        }
+        const trNew = sim.trips[st.trip-1];
+        const lbl = facName+' を出発'+(sim.trips.length>1?'（'+st.trip+'便目・見込）':'（見込）');
+        html += termHtml('発', trNew.depart!=null?toHM(trNew.depart):'', lbl);
+        prevTrip = st.trip;
+      }
+      html += '<div class="leg"><span>┋</span></div>';
+      const late = st.delay >= 0.5;
+      html += '<div class="stop" data-id="'+st.id+'" data-vid="'+a.vid+'">'
+        +'<div class="no">'+(idx+1)+'</div>'
+        +'<div class="bd">'
+        +'<span class="t">'+esc(p.time||'')+'</span> <span class="s">'+esc(shortName(s.name))+'</span> <span class="eta">'+st.num+'名</span>'
+        +'<div class="eta">到着見込 '+toHM(st.arrive)+(late?' <b class="late">＋'+Math.round(st.delay)+'分遅れ</b>':'')+'</div>'
+        +(p.memo?'<div class="m">'+esc(p.memo)+'</div>':'')
+        +((vehNames[a.vid] && vehNames[a.vid].cap!==Infinity && st.load>vehNames[a.vid].cap)?'<div class="warn">⚠ ここで定員を超えます（'+st.load+'名）</div>':'')
+        +'</div>'
+        +'<div class="mv">'
+        +'<div class="ud">'
+        +'<button data-mv="-1" '+(idx===0?'disabled':'')+'>▲</button>'
+        +'<button data-mv="1" '+(idx===sim.stops.length-1?'disabled':'')+'>▼</button>'
+        +'</div>'
+        +(state.vehicles.length>1?vehSelect(a.vid):'')
+        +'</div></div>';
+    });
+    html += '<div class="leg"><span>┋</span></div>';
+    html += termHtml('着', sim.returnAt!=null?toHM(sim.returnAt):'', facName+' に帰着（見込）');
+    const urls = buildMapUrls(a.stops);
+    urls.forEach((u,k)=>{
+      const lbl = urls.length>1 ? esc(v.name)+' のルートを開く（'+(k+1)+'／'+urls.length+'）' : esc(v.name)+' のルートを開く';
+      html += '<a class="mapbtn" href="'+esc(u)+'" target="_blank" rel="noopener">🗺 '+lbl+'</a>';
+    });
+    html += '<div class="vfoot">遅延は目安です。乗車'+state.settings.board+'分／'
+      +(geoMissing?'座標なし区間 '+state.settings.leg+'分':'平均時速'+state.settings.speed+'km')+'で計算。</div>';
+    html += '</div>';
   });
-  html += '</div>';
-  if(urls.length>1){
-    html += '<p class="note">Googleマップは一度に通れる地点数に上限があるため、ルートを分けています。順番につないでください。</p>';
+
+  html += '<div class="sumline">合計 '+grandNum+'名 ・ 全体の最大遅延 '+(grandDelay>0?'＋'+Math.round(grandDelay)+'分':'なし')+'</div>';
+  if(geoMissing){
+    html += '<p class="note">学校・事業所に緯度・経度を登録すると、移動時間と遅延の見込みが実際の距離に近づきます（いまは座標のない区間を一律 '+state.settings.leg+' 分で計算）。</p>';
   }
-  html += '<div class="row" style="margin-top:4px;">'
+  html += '<div class="row" style="margin-top:10px;">'
         +'<button class="ghost" id="btnCopyPlan">ルート文をコピー</button>'
         +(navigator.share?'<button class="ghost" id="btnSharePlan">共有（LINEなど）</button>':'')
         +'</div>';
   box.innerHTML = html;
 
-  box.querySelectorAll('.stop .mv button').forEach(b=>{
+  box.querySelectorAll('.stop .ud button').forEach(b=>{
     b.addEventListener('click', ()=>{
-      const id = b.closest('.stop').dataset.id;
-      moveStop(id, parseInt(b.dataset.mv,10));
+      const el = b.closest('.stop');
+      moveStop(el.dataset.vid, el.dataset.id, parseInt(b.dataset.mv,10));
+    });
+  });
+  box.querySelectorAll('.stop select.vsel').forEach(sel=>{
+    sel.addEventListener('change', ()=>{
+      const el = sel.closest('.stop');
+      moveToVehicle(el.dataset.vid, el.dataset.id, sel.value);
     });
   });
   const cp = $('#btnCopyPlan');
   if(cp) cp.addEventListener('click', ()=>{
-    copyText(planText(ids)).then(ok=> toast(ok!==false?'コピーしました':'コピーできませんでした'));
+    copyText(planText()).then(ok=> toast(ok!==false?'コピーしました':'コピーできませんでした'));
   });
   const sh = $('#btnSharePlan');
   if(sh) sh.addEventListener('click', ()=>{
-    navigator.share({text: planText(ids)}).catch(()=>{});
+    navigator.share({text: planText()}).catch(()=>{});
   });
 }
-function stopHtml(no, time, name, memo){
+function termHtml(no, time, name){
   return '<div class="stop term"><div class="no">'+no+'</div>'
-    +'<div class="bd">'+(time?'<span class="t">'+esc(time)+'</span> ':'')+'<span class="s">'+esc(name)+'</span>'
-    +(memo?'<div class="m">'+esc(memo)+'</div>':'')+'</div></div>';
+    +'<div class="bd">'+(time?'<span class="t">'+esc(time)+'</span> ':'')+'<span class="s">'+esc(name)+'</span></div></div>';
 }
-function moveStop(id, dir){
-  const ids = state.order;
-  const i = ids.indexOf(id);
-  const j = i + dir;
+function vehSelect(currentVid){
+  return '<select class="vsel">'+state.vehicles.map(v=>
+    '<option value="'+v.id+'"'+(v.id===currentVid?' selected':'')+'>'+esc(v.name)+'</option>').join('')+'</select>';
+}
+function moveStop(vid, id, dir){
+  const a = state.plan.assign.find(x=>x.vid===vid);
+  if(!a) return;
+  const ids = a.stops;
+  const i = ids.indexOf(id), j = i + dir;
   if(i<0 || j<0 || j>=ids.length) return;
   [ids[i], ids[j]] = [ids[j], ids[i]];
   save(); renderRoute();
+}
+function moveToVehicle(fromVid, id, toVid){
+  if(fromVid===toVid) return;
+  const from = state.plan.assign.find(x=>x.vid===fromVid);
+  if(!from) return;
+  from.stops = from.stops.filter(x=>x!==id);
+  let to = state.plan.assign.find(x=>x.vid===toVid);
+  if(!to){ to = {vid:toVid, stops:[]}; state.plan.assign.push(to); }
+  // 時刻順の位置に差し込む
+  const t = toMin((state.picks[id]&&state.picks[id].time)||'15:00');
+  let ins = to.stops.length;
+  for(let k=0;k<to.stops.length;k++){
+    const tk = toMin((state.picks[to.stops[k]]&&state.picks[to.stops[k]].time)||'15:00');
+    if(tk > t){ ins = k; break; }
+  }
+  to.stops.splice(ins, 0, id);
+  state.plan.assign = state.plan.assign.filter(x=>x.stops.length);
+  save(); renderRoute();
+  toast('車を変更しました');
 }
 function buildMapUrls(ids){
   const MAXW = 9; // Googleマップの経由地上限
   const fac = facilityQuery();
   const pts = ids.map(id => mapQuery(schoolById(id)));
-  const all = [fac, ...pts, fac];  // 出発→各校→帰着
+  const all = [fac, ...pts, fac];
   const urls = [];
   let start = 0;
   while(start < all.length-1){
@@ -574,18 +832,39 @@ function buildMapUrls(ids){
   }
   return urls;
 }
-function planText(ids){
+function planText(){
+  const plan = planEntries();
+  const vehNames = {};
+  activeVehicles().forEach(v=>vehNames[v.id]=v);
   const lines = [];
   lines.push('【お迎えルート】'+todayLabel());
-  lines.push('出発 '+(state.facility.dep||'')+' '+(state.facility.name||'事業所'));
-  ids.forEach((id, i)=>{
-    const s = schoolById(id), p = state.picks[id];
-    lines.push('①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳'.charAt(i<20?i:19)+' '+(p.time||'')+' '+shortName(s.name)+(p.memo?'（'+p.memo+'）':''));
+  plan.forEach(a=>{
+    const v = vehNames[a.vid] || {name:'車', cap:Infinity};
+    const sim = simulateVehicle(a.stops);
+    const fn = state.facility.name || '事業所';
+    lines.push('■ '+v.name+(v.cap!==Infinity?'（定員'+v.cap+'）':'')+' 乗車最大'+sim.maxLoad+'名');
+    let prevTrip = 0;
+    sim.stops.forEach((st,i)=>{
+      if(st.trip!==prevTrip){
+        if(prevTrip>0){
+          const trPrev = sim.trips[prevTrip-1];
+          lines.push('戻 '+(trPrev.return!=null?toHM(trPrev.return):'')+' '+fn+'（降車）');
+        }
+        const trNew = sim.trips[st.trip-1];
+        lines.push('発 '+(trNew.depart!=null?toHM(trNew.depart):'')+' '+fn+(sim.trips.length>1?'（'+st.trip+'便目）':''));
+        prevTrip = st.trip;
+      }
+      const s = schoolById(st.id), p = state.picks[st.id];
+      lines.push(MARU.charAt(i<20?i:19)+' '+(p.time||'')+' '+shortName(s.name)+' '+st.num+'名'
+        +(st.delay>=0.5?'（＋'+Math.round(st.delay)+'分遅れ見込）':'')
+        +(p.memo?'／'+p.memo:''));
+    });
+    lines.push('着 '+(sim.returnAt!=null?toHM(sim.returnAt):'')+' '+fn);
+    const urls = buildMapUrls(a.stops);
+    urls.forEach(u=>lines.push(u));
+    lines.push('');
   });
-  lines.push('帰着 '+(state.facility.name||'事業所'));
-  const urls = buildMapUrls(ids);
-  lines.push('▼Googleマップ');
-  urls.forEach(u=>lines.push(u));
+  lines.push('※到着・遅延は目安です');
   return lines.join('\n');
 }
 
@@ -600,7 +879,7 @@ function renderSchools(){
     '<div class="sch" data-id="'+s.id+'">'
     +'<span class="kindtag'+(s.kind==='支'?' k支':'')+'">'+KIND_LABEL[s.kind]+'</span>'
     +'<div class="nm">'+esc(s.name)
-    +'<div class="ad">'+esc(s.addr || '')+(s.lat!=null?' ｜ 座標あり':'')+' ｜ '+esc(s.time||'')+'</div></div>'
+    +'<div class="ad">'+esc(s.addr || '')+(hasGeo(s)?' ｜ 座標あり':' ｜ 座標なし')+' ｜ '+esc(s.time||'')+'</div></div>'
     +'<button class="small ghost shrink" data-act="edit">編集</button>'
     +'</div>').join('');
   box.querySelectorAll('.sch [data-act="edit"]').forEach(b=>{
@@ -616,7 +895,7 @@ function openSchoolDialog(id){
   $('#scName').value = s ? s.name : '';
   $('#scKind').value = s ? s.kind : '小';
   $('#scAddr').value = s ? s.addr : '';
-  $('#scGeo').value = (s && s.lat!=null) ? (s.lat+', '+s.lng) : '';
+  $('#scGeo').value = (s && hasGeo(s)) ? (s.lat+', '+s.lng) : '';
   $('#scTime').value = (s && s.time) || '15:00';
   $('#btnSchoolDelete').style.display = s ? '' : 'none';
   $('#dlgSchool').showModal();
@@ -625,21 +904,16 @@ $('#btnSchoolCancel').addEventListener('click', ()=> $('#dlgSchool').close());
 $('#btnSchoolSave').addEventListener('click', ()=>{
   const name = $('#scName').value.trim();
   if(!name){ toast('学校名を入れてください'); return; }
-  let lat = null, lng = null;
-  const geo = $('#scGeo').value.trim();
-  if(geo){
-    const m = geo.match(/(-?\d+(?:\.\d+)?)[,\s]+(-?\d+(?:\.\d+)?)/);
-    if(m){ lat = parseFloat(m[1]); lng = parseFloat(m[2]); }
-    else { toast('座標は「34.48, 135.42」の形で'); return; }
-  }
-  const data = {name, kind:$('#scKind').value, addr:$('#scAddr').value.trim(), lat, lng, time:$('#scTime').value||'15:00'};
+  const g = parseGeo($('#scGeo').value);
+  if(!g.ok){ toast('座標は「34.48, 135.42」の形で'); return; }
+  const data = {name, kind:$('#scKind').value, addr:$('#scAddr').value.trim(), lat:g.lat, lng:g.lng, time:$('#scTime').value||'15:00'};
   if(editingId){
     Object.assign(schoolById(editingId), data);
   }else{
     state.seq = (state.seq||1000)+1;
     state.schools.push(Object.assign({id:'u'+state.seq}, data));
   }
-  save(); renderSchools(); renderPicks();
+  save(); renderSchools(); renderPicks(); renderRoute();
   $('#dlgSchool').close();
   toast('保存しました');
 });
@@ -649,9 +923,64 @@ $('#btnSchoolDelete').addEventListener('click', ()=>{
   if(!confirm('「'+s.name+'」を削除しますか？')) return;
   state.schools = state.schools.filter(x=>x.id!==editingId);
   delete state.picks[editingId];
-  state.order = state.order.filter(x=>x!==editingId);
+  state.plan.assign.forEach(a=>{ a.stops = a.stops.filter(x=>x!==editingId); });
+  state.plan.assign = state.plan.assign.filter(a=>a.stops.length);
   save(); renderSchools(); renderPicks(); renderRoute();
   $('#dlgSchool').close();
+  toast('削除しました');
+});
+
+/* ============ 車両マスタ ============ */
+function renderVehicles(){
+  const box = $('#vehicleList');
+  if(state.vehicles.length===0){
+    box.innerHTML = '<div class="empty">車が未登録です。未登録のときは1台の車ですべて回る想定になります。</div>';
+    return;
+  }
+  box.innerHTML = state.vehicles.map(v=>
+    '<div class="sch" data-id="'+v.id+'">'
+    +'<span class="kindtag">車</span>'
+    +'<div class="nm">'+esc(v.name)+'<div class="ad">乗車できる児童 '+v.cap+' 名</div></div>'
+    +'<button class="small ghost shrink" data-act="edit">編集</button>'
+    +'</div>').join('');
+  box.querySelectorAll('.sch [data-act="edit"]').forEach(b=>{
+    b.addEventListener('click', ()=> openVehicleDialog(b.closest('.sch').dataset.id));
+  });
+}
+let editingVid = null;
+$('#btnAddVehicle').addEventListener('click', ()=> openVehicleDialog(null));
+function openVehicleDialog(id){
+  editingVid = id;
+  const v = id ? vehicleById(id) : null;
+  $('#dlgVehicleTitle').textContent = v ? '車を編集' : '車を追加';
+  $('#vhName').value = v ? v.name : '';
+  $('#vhCap').value = v ? v.cap : 6;
+  $('#btnVehicleDelete').style.display = v ? '' : 'none';
+  $('#dlgVehicle').showModal();
+}
+$('#btnVehicleCancel').addEventListener('click', ()=> $('#dlgVehicle').close());
+$('#btnVehicleSave').addEventListener('click', ()=>{
+  const name = $('#vhName').value.trim();
+  const cap = Math.max(1, parseInt($('#vhCap').value,10)||0);
+  if(!name){ toast('車の名前を入れてください'); return; }
+  if(editingVid){
+    Object.assign(vehicleById(editingVid), {name, cap});
+  }else{
+    state.seq = (state.seq||1000)+1;
+    state.vehicles.push({id:'v'+state.seq, name, cap});
+  }
+  save(); renderVehicles(); renderRoute();
+  $('#dlgVehicle').close();
+  toast('保存しました');
+});
+$('#btnVehicleDelete').addEventListener('click', ()=>{
+  if(!editingVid) return;
+  const v = vehicleById(editingVid);
+  if(!confirm('「'+v.name+'」を削除しますか？')) return;
+  state.vehicles = state.vehicles.filter(x=>x.id!==editingVid);
+  state.plan.assign = state.plan.assign.filter(a=>a.vid!==editingVid);
+  save(); renderVehicles(); renderRoute();
+  $('#dlgVehicle').close();
   toast('削除しました');
 });
 
@@ -659,11 +988,33 @@ $('#btnSchoolDelete').addEventListener('click', ()=>{
 function renderSettings(){
   $('#facName').value = state.facility.name || '';
   $('#facAddr').value = state.facility.addr || '';
-  $('#facDep').value = state.facility.dep || '14:30';
+  $('#facGeo').value = hasGeo(state.facility) ? (state.facility.lat+', '+state.facility.lng) : '';
+  $('#setLeg').value = state.settings.leg;
+  $('#setSpeed').value = state.settings.speed;
+  $('#setBoard').value = state.settings.board;
+  $('#setGap').value = state.settings.gap;
 }
-$('#facName').addEventListener('change', e=>{ state.facility.name = e.target.value.trim(); save(); });
-$('#facAddr').addEventListener('change', e=>{ state.facility.addr = e.target.value.trim(); save(); });
-$('#facDep').addEventListener('change', e=>{ state.facility.dep = e.target.value; save(); });
+$('#facName').addEventListener('change', e=>{ state.facility.name = e.target.value.trim(); save(); renderRoute(); });
+$('#facAddr').addEventListener('change', e=>{ state.facility.addr = e.target.value.trim(); save(); renderRoute(); });
+$('#facGeo').addEventListener('change', e=>{
+  const g = parseGeo(e.target.value);
+  if(!g.ok){ toast('座標は「34.48, 135.42」の形で'); return; }
+  state.facility.lat = g.lat; state.facility.lng = g.lng;
+  save(); renderRoute();
+});
+function bindNum(sel, key, min, max){
+  $(sel).addEventListener('change', e=>{
+    let v = parseInt(e.target.value,10);
+    if(isNaN(v)) v = DEFAULT_SETTINGS[key];
+    v = Math.min(max, Math.max(min, v));
+    state.settings[key] = v; e.target.value = v;
+    save(); renderRoute();
+  });
+}
+bindNum('#setLeg','leg',1,60);
+bindNum('#setSpeed','speed',5,60);
+bindNum('#setBoard','board',0,30);
+bindNum('#setGap','gap',5,120);
 
 $('#btnExport').addEventListener('click', ()=>{
   const text = 'おむかえルート帖データ\n' + JSON.stringify(state);
@@ -678,7 +1029,8 @@ $('#btnImportDo').addEventListener('click', ()=>{
   try{
     const s = JSON.parse(raw.slice(i));
     if(!s || !Array.isArray(s.schools)) throw 0;
-    state = s;
+    localStorage.setItem(STORE_KEY, JSON.stringify(s));
+    state = load();
     save();
     renderAll();
     $('#dlgImport').close();
@@ -688,7 +1040,7 @@ $('#btnImportDo').addEventListener('click', ()=>{
 
 /* ============ 初期化 ============ */
 function renderAll(){
-  renderFilter(); renderPicks(); renderRoute(); renderSchools(); renderSettings();
+  renderFilter(); renderPicks(); renderRoute(); renderSchools(); renderVehicles(); renderSettings();
 }
 renderAll();
 
