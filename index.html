@@ -275,6 +275,12 @@ textarea{min-height:110px;font-size:.8rem;}
       <button class="small ghost" id="btnExport">書き出してコピー</button>
       <button class="small ghost" id="btnImport">読み込む</button>
     </div>
+    <p class="note" style="margin-bottom:4px;">ファイルとして残したいときはこちら。「ファイル」アプリに保存でき、他の人に送ることもできます。</p>
+    <div class="row">
+      <button class="small ghost" id="btnExportJson">JSONで保存</button>
+      <button class="small ghost" id="btnImportJson">JSONを読み込む</button>
+    </div>
+    <input type="file" id="fileImportJson" accept=".json,application/json" style="display:none;">
   </div>
 
   <h2>このアプリについて</h2>
@@ -1074,6 +1080,54 @@ bindNum('#setSpeed','speed',5,60);
 bindNum('#setBoard','board',0,30);
 bindNum('#setGap','gap',5,120);
 
+function applyImportedData(s){
+  if(!s || !Array.isArray(s.schools)) return {ok:false};
+  const isFullBackup = ('vehicles' in s) || ('facility' in s) || ('settings' in s) || ('picks' in s);
+  if(isFullBackup){
+    // 端末間の引き継ぎ用フルバックアップ：まるごと置き換え
+    localStorage.setItem(STORE_KEY, JSON.stringify(s));
+    state = load();
+    save();
+    renderAll();
+    return {ok:true, mode:'full'};
+  }else{
+    // 学校データだけの更新：車両・設定・今日の選択はそのままに、学校情報だけ統合
+    let updated = 0, added = 0;
+    s.schools.forEach(inc=>{
+      if(!inc || !inc.name) return;
+      const hit = state.schools.find(sc => sc.name === inc.name);
+      if(hit){
+        if('kind' in inc) hit.kind = inc.kind;
+        if('addr' in inc) hit.addr = inc.addr;
+        if('lat' in inc) hit.lat = inc.lat;
+        if('lng' in inc) hit.lng = inc.lng;
+        if('time' in inc) hit.time = inc.time;
+        updated++;
+      }else{
+        state.seq = (state.seq||1000)+1;
+        state.schools.push({
+          id:'u'+state.seq, name:inc.name, kind:inc.kind||'他',
+          addr:inc.addr||'', lat:(inc.lat!=null?inc.lat:null), lng:(inc.lng!=null?inc.lng:null),
+          time:inc.time||'15:00'
+        });
+        added++;
+      }
+    });
+    save();
+    renderSchools(); renderPicks(); renderRoute();
+    return {ok:true, mode:'merge', updated, added};
+  }
+}
+function importResultToast(r){
+  if(!r.ok){ toast('読み込めませんでした'); return; }
+  if(r.mode==='full') toast('読み込みました');
+  else toast('学校データを更新しました（更新'+r.updated+'件・追加'+r.added+'件）');
+}
+function todayStamp(){
+  const d = new Date();
+  return d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
+}
+
 $('#btnExport').addEventListener('click', ()=>{
   const text = 'おむかえルート帖データ\n' + JSON.stringify(state);
   copyText(text).then(ok=> toast(ok!==false?'コピーしました。メモ等に貼って保存を':'コピーできませんでした'));
@@ -1086,45 +1140,41 @@ $('#btnImportDo').addEventListener('click', ()=>{
   if(i<0){ toast('データが見つかりません'); return; }
   try{
     const s = JSON.parse(raw.slice(i));
-    if(!s || !Array.isArray(s.schools)) throw 0;
-    const isFullBackup = ('vehicles' in s) || ('facility' in s) || ('settings' in s) || ('picks' in s);
-    if(isFullBackup){
-      // 端末間の引き継ぎ用フルバックアップ：まるごと置き換え
-      localStorage.setItem(STORE_KEY, JSON.stringify(s));
-      state = load();
-      save();
-      renderAll();
-      $('#dlgImport').close();
-      toast('読み込みました');
-    }else{
-      // 学校データだけの更新：車両・設定・今日の選択はそのままに、学校情報だけ統合
-      let updated = 0, added = 0;
-      s.schools.forEach(inc=>{
-        if(!inc || !inc.name) return;
-        const hit = state.schools.find(sc => sc.name === inc.name);
-        if(hit){
-          if('kind' in inc) hit.kind = inc.kind;
-          if('addr' in inc) hit.addr = inc.addr;
-          if('lat' in inc) hit.lat = inc.lat;
-          if('lng' in inc) hit.lng = inc.lng;
-          if('time' in inc) hit.time = inc.time;
-          updated++;
-        }else{
-          state.seq = (state.seq||1000)+1;
-          state.schools.push({
-            id:'u'+state.seq, name:inc.name, kind:inc.kind||'他',
-            addr:inc.addr||'', lat:(inc.lat!=null?inc.lat:null), lng:(inc.lng!=null?inc.lng:null),
-            time:inc.time||'15:00'
-          });
-          added++;
-        }
-      });
-      save();
-      renderSchools(); renderPicks(); renderRoute();
-      $('#dlgImport').close();
-      toast('学校データを更新しました（更新'+updated+'件・追加'+added+'件）');
-    }
+    const r = applyImportedData(s);
+    if(r.ok){ $('#dlgImport').close(); }
+    importResultToast(r);
   }catch(e){ toast('読み込めませんでした'); }
+});
+
+/* JSONファイルでの保存・読み込み */
+$('#btnExportJson').addEventListener('click', ()=>{
+  try{
+    const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'omukae-route-'+todayStamp()+'.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 3000);
+    toast('JSONファイルを保存しました');
+  }catch(e){ toast('保存できませんでした'); }
+});
+$('#btnImportJson').addEventListener('click', ()=>{ $('#fileImportJson').value=''; $('#fileImportJson').click(); });
+$('#fileImportJson').addEventListener('change', (e)=>{
+  const file = e.target.files && e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const s = JSON.parse(reader.result);
+      const r = applyImportedData(s);
+      importResultToast(r);
+    }catch(err){ toast('読み込めませんでした（JSONの形式をご確認ください）'); }
+  };
+  reader.onerror = ()=> toast('ファイルを読み込めませんでした');
+  reader.readAsText(file, 'utf-8');
 });
 
 /* ============ 初期化 ============ */
