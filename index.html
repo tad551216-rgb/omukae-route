@@ -336,11 +336,11 @@ textarea{min-height:110px;font-size:.8rem;}
 <!-- 読み込みダイアログ -->
 <dialog id="dlgImport">
   <h2 style="margin-top:0;">データの読み込み</h2>
-  <p class="note">「書き出してコピー」で作った文をここに貼り付けてください。今のデータは置き換わります。</p>
+  <p class="note">「書き出してコピー」で作った文を貼り付けると、今のデータをまるごと置き換えます。学校の住所・座標だけのデータを貼り付けたときは、車両や設定はそのままに、学校の情報だけを更新・追加します。</p>
   <textarea id="importText" placeholder="ここに貼り付け"></textarea>
   <div class="row" style="margin-top:12px;">
     <button class="ghost" id="btnImportCancel">やめる</button>
-    <button class="verm" id="btnImportDo">読み込んで置き換える</button>
+    <button class="verm" id="btnImportDo">読み込む</button>
   </div>
 </dialog>
 
@@ -353,20 +353,48 @@ const STORE_KEY = 'omukae-techo-v1';
 const KIND_LABEL = {'小':'小','中':'中','義':'義','支':'支援','他':'他'};
 
 /* --- 初期学校リスト（和泉市 2026年時点の公開情報） --- */
+const SCHOOL_MASTER = [
+  {name:"和泉市立国府小学校", kind:"小", addr:"大阪府和泉市府中町2丁目5-20", lat:34.483213, lng:135.424916, time:"15:00"},
+  {name:"和泉市立和気小学校", kind:"小", addr:"大阪府和泉市和気町4丁目9-1", lat:34.4755079, lng:135.429172, time:"15:00"},
+  {name:"和泉市立伯太小学校", kind:"小", addr:"大阪府和泉市伯太町2丁目24-22", lat:34.492018, lng:135.437134, time:"15:00"},
+  {name:"和泉市立池上小学校", kind:"小", addr:"大阪府和泉市池上町3丁目14-45", lat:34.502088, lng:135.430332, time:"15:00"},
+  {name:"和泉市立黒鳥小学校", kind:"小", addr:"大阪府和泉市黒鳥町1丁目6-5", lat:34.4897049, lng:135.4373073, time:"15:00"},
+  {name:"和泉市立芦部小学校", kind:"小", addr:"大阪府和泉市芦部町224-3", lat:34.481164, lng:135.441597, time:"15:00"},
+  {name:"和泉市立北池田小学校", kind:"小", addr:"大阪府和泉市池田下町1670", lat:34.4710082, lng:135.4610607, time:"15:00"},
+  {name:"和泉市立いぶき野小学校", kind:"小", addr:"大阪府和泉市いぶき野3丁目3-1", lat:34.4669601, lng:135.4525181, time:"15:00"},
+  {name:"和泉市立南池田小学校", kind:"小", addr:"大阪府和泉市納家町181", lat:34.447593, lng:135.474312, time:"15:00"},
+  {name:"和泉市立緑ケ丘小学校", kind:"小", addr:"大阪府和泉市緑ケ丘3丁目4-1", lat:34.4461813, lng:135.4593025, time:"15:00"},
+  {name:"和泉市立青葉はつが野小学校", kind:"小", addr:"大阪府和泉市はつが野1丁目50-1", lat:34.442946, lng:135.463171, time:"15:00"},
+  {name:"和泉市立北松尾小学校", kind:"小", addr:"大阪府和泉市唐国町3丁目3-19", lat:34.4588568, lng:135.4462161, time:"15:00"},
+  {name:"和泉市立南松尾小学校", kind:"小", addr:"大阪府和泉市久井町430", lat:34.4196547, lng:135.4584114, time:"15:00"},
+  {name:"和泉市立横山小学校", kind:"小", addr:"大阪府和泉市北田中町183", lat:34.4288278, lng:135.4952189, time:"15:00"},
+  {name:"和泉市立南横山小学校", kind:"小", addr:"大阪府和泉市父鬼町1506", lat:34.395734, lng:135.46739, time:"15:00"},
+  {name:"和泉市立幸小学校", kind:"小", addr:"大阪府和泉市幸3丁目3-1", lat:34.499705, lng:135.436265, time:"15:00"},
+  {name:"和泉市立信太小学校", kind:"小", addr:"大阪府和泉市尾野町2丁目8-17", lat:34.5063823, lng:135.4442053, time:"15:00"},
+  {name:"和泉市立鶴山台北小学校", kind:"小", addr:"大阪府和泉市鶴山台1丁目9-1", lat:34.5078981, lng:135.4516445, time:"15:00"},
+  {name:"和泉市立鶴山台南小学校", kind:"小", addr:"大阪府和泉市鶴山台4丁目1-1", lat:34.499453, lng:135.4487468, time:"15:00"},
+  {name:"和泉市立光明台北小学校", kind:"小", addr:"大阪府和泉市光明台1丁目35-1", lat:34.45714, lng:135.4826773, time:"15:00"},
+  {name:"和泉市立光明台南小学校", kind:"小", addr:"大阪府和泉市光明台3丁目8-1", lat:34.4526227, lng:135.4892354, time:"15:00"},
+  {name:"和泉市立和泉中学校", kind:"中", addr:"大阪府和泉市伯太町1丁目2-1", lat:34.4924702, lng:135.429343, time:"15:00"},
+  {name:"和泉市立郷荘中学校", kind:"中", addr:"大阪府和泉市寺門町1丁目14-35", lat:34.474164, lng:135.433212, time:"15:00"},
+  {name:"和泉市立石尾中学校", kind:"中", addr:"大阪府和泉市万町930", lat:34.457519, lng:135.457735, time:"15:00"},
+  {name:"和泉市立北池田中学校", kind:"中", addr:"大阪府和泉市いぶき野3丁目4-1", lat:34.46581, lng:135.455666, time:"15:00"},
+  {name:"和泉市立南池田中学校", kind:"中", addr:"大阪府和泉市梶谷町226", lat:34.4475528, lng:135.4668018, time:"15:00"},
+  {name:"和泉市立光明台中学校", kind:"中", addr:"大阪府和泉市光明台1丁目28-1", lat:34.457152, lng:135.4873456, time:"15:00"},
+  {name:"和泉市立槇尾中学校", kind:"中", addr:"大阪府和泉市仏並町198", lat:34.4266443, lng:135.4880851, time:"15:00"},
+  {name:"和泉市立富秋中学校", kind:"中", addr:"大阪府和泉市冨秋町2丁目2-89", lat:34.5056761, lng:135.4360006, time:"15:00"},
+  {name:"和泉市立信太中学校", kind:"中", addr:"大阪府和泉市鶴山台1丁目1-1", lat:34.506061, lng:135.448305, time:"15:00"},
+  {name:"和泉市立南松尾はつが野学園", kind:"義", addr:"大阪府和泉市はつが野6丁目45-1", lat:34.4353963, lng:135.4651766, time:"15:00"},
+  {name:"大阪府立和泉支援学校", kind:"支", addr:"大阪府和泉市池上町2丁目4-6", lat:34.49677, lng:135.42854, time:"15:00"},
+  {name:"大阪府立泉北高等支援学校", kind:"支", addr:"大阪府堺市南区原山台2丁目6番", lat:34.4826919, lng:135.4892193, time:"15:00"},
+];
+
 function presetSchools(){
-  const es = ['国府','和気','伯太','池上','黒鳥','芦部','北池田','いぶき野','南池田','緑ケ丘',
-              '青葉はつが野','北松尾','南松尾','横山','南横山','幸','信太','鶴山台北','鶴山台南',
-              '光明台北','光明台南'];
-  const jhs = ['和泉','郷荘','石尾','北池田','南池田','光明台','槇尾','富秋','信太'];
-  const list = [];
   let n = 0;
-  const mk = (name, kind, addr) => list.push({id:'p'+(++n), name, kind, addr:addr||'', lat:null, lng:null, time:'15:00'});
-  es.forEach(s => mk('和泉市立'+s+'小学校','小'));
-  jhs.forEach(s => mk('和泉市立'+s+'中学校','中'));
-  mk('和泉市立南松尾はつが野学園','義','大阪府和泉市はつが野6丁目45-1');
-  mk('大阪府立和泉支援学校','支','大阪府和泉市池上町2-4-6');
-  mk('大阪府立泉北高等支援学校','支');
-  return list;
+  return SCHOOL_MASTER.map(s => ({
+    id: 'p'+(++n), name: s.name, kind: s.kind, addr: s.addr,
+    lat: s.lat, lng: s.lng, time: s.time
+  }));
 }
 const DEFAULT_SETTINGS = {leg:8, speed:25, board:3, gap:20, factor:1.4};
 
@@ -1059,12 +1087,43 @@ $('#btnImportDo').addEventListener('click', ()=>{
   try{
     const s = JSON.parse(raw.slice(i));
     if(!s || !Array.isArray(s.schools)) throw 0;
-    localStorage.setItem(STORE_KEY, JSON.stringify(s));
-    state = load();
-    save();
-    renderAll();
-    $('#dlgImport').close();
-    toast('読み込みました');
+    const isFullBackup = ('vehicles' in s) || ('facility' in s) || ('settings' in s) || ('picks' in s);
+    if(isFullBackup){
+      // 端末間の引き継ぎ用フルバックアップ：まるごと置き換え
+      localStorage.setItem(STORE_KEY, JSON.stringify(s));
+      state = load();
+      save();
+      renderAll();
+      $('#dlgImport').close();
+      toast('読み込みました');
+    }else{
+      // 学校データだけの更新：車両・設定・今日の選択はそのままに、学校情報だけ統合
+      let updated = 0, added = 0;
+      s.schools.forEach(inc=>{
+        if(!inc || !inc.name) return;
+        const hit = state.schools.find(sc => sc.name === inc.name);
+        if(hit){
+          if('kind' in inc) hit.kind = inc.kind;
+          if('addr' in inc) hit.addr = inc.addr;
+          if('lat' in inc) hit.lat = inc.lat;
+          if('lng' in inc) hit.lng = inc.lng;
+          if('time' in inc) hit.time = inc.time;
+          updated++;
+        }else{
+          state.seq = (state.seq||1000)+1;
+          state.schools.push({
+            id:'u'+state.seq, name:inc.name, kind:inc.kind||'他',
+            addr:inc.addr||'', lat:(inc.lat!=null?inc.lat:null), lng:(inc.lng!=null?inc.lng:null),
+            time:inc.time||'15:00'
+          });
+          added++;
+        }
+      });
+      save();
+      renderSchools(); renderPicks(); renderRoute();
+      $('#dlgImport').close();
+      toast('学校データを更新しました（更新'+updated+'件・追加'+added+'件）');
+    }
   }catch(e){ toast('読み込めませんでした'); }
 });
 
