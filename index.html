@@ -204,6 +204,14 @@ textarea{min-height:110px;font-size:.8rem;}
 }
 .toast.show{opacity:1;}
 .empty{color:var(--muted);font-size:.85rem;text-align:center;padding:22px 0;}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;background:#fff;border:1.5px solid var(--line);
+  border-radius:99px;padding:6px 8px 6px 13px;margin:0 6px 6px 0;font-size:.82rem;color:var(--ink);
+}
+.chip button{
+  background:var(--verm);color:#fff;border:none;width:18px;height:18px;border-radius:50%;
+  font-size:.68rem;padding:0;line-height:1;display:flex;align-items:center;justify-content:center;
+}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;}}
 </style>
 </head>
@@ -258,6 +266,11 @@ textarea{min-height:110px;font-size:.8rem;}
     <input id="facAddr" placeholder="例：大阪府和泉市府中町○丁目○-○">
     <label class="fld" for="facGeo">緯度,経度（省略可・遅延見込みが正確になります）</label>
     <input id="facGeo" placeholder="例：34.4839, 135.4256" inputmode="decimal">
+    <div class="row" style="margin-top:8px;">
+      <button class="small ghost" id="btnGeoHere">📍 現在地から取得</button>
+      <button class="small ghost" id="btnGeoAddr">🔍 住所から取得</button>
+    </div>
+    <p class="note" id="geoStatus" style="margin-bottom:0;">「現在地から取得」は事業所にいるときに、「住所から取得」は上の住所をもとに座標を調べます（インターネット接続が必要です）。</p>
   </div>
 
   <h2>移動時間の見積もり</h2>
@@ -271,6 +284,21 @@ textarea{min-height:110px;font-size:.8rem;}
     <label class="fld" for="setGap">別便とみなす時刻の差（分）</label>
     <input id="setGap" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" style="width:110px;">
     <p class="note" style="margin-bottom:0;">下校時刻がこの差以上離れていると（例：13:15便と13:45便）、いったん事業所に戻って降ろしてから次の便に向かう想定で計算します。</p>
+  </div>
+
+  <h2>学校データを作成（地域から検索）</h2>
+  <div class="card">
+    <p class="note" style="margin-top:0;">都道府県と市区町村を指定すると、その地域の小学校・中学校・支援学校などをまとめて学校リストに追加できます（地図データ OpenStreetMap を利用。インターネット接続が必要です）。既にある学校は座標・住所だけ更新され、二重登録にはなりません。</p>
+    <label class="fld" for="genPref">都道府県</label>
+    <select id="genPref"></select>
+    <label class="fld" for="genCityInput">市区町村（複数追加できます）</label>
+    <div class="row">
+      <input id="genCityInput" placeholder="例：和泉市">
+      <button class="small ghost shrink" id="btnAddCity">＋ 追加</button>
+    </div>
+    <div id="cityChips" style="margin:8px 0 4px;"></div>
+    <button class="wide verm" id="btnGenSchools" style="margin-top:8px;">この地域の学校データを作成</button>
+    <p class="note" id="genStatus" style="margin-bottom:0;"></p>
   </div>
 
   <h2>データの控え（書き出し・読み込み）</h2>
@@ -1130,6 +1158,173 @@ bindNum('#setLeg','leg',1,60);
 bindNum('#setSpeed','speed',5,60);
 bindNum('#setBoard','board',0,30);
 bindNum('#setGap','gap',5,120);
+
+/* --- 事業所：緯度経度の取得 --- */
+function setFacGeoStatus(msg){ const el = $('#geoStatus'); if(el) el.textContent = msg; }
+const GEO_DEFAULT_NOTE = '「現在地から取得」は事業所にいるときに、「住所から取得」は上の住所をもとに座標を調べます（インターネット接続が必要です）。';
+$('#btnGeoHere').addEventListener('click', ()=>{
+  if(!('geolocation' in navigator)){ toast('この端末では現在地を取得できません'); return; }
+  setFacGeoStatus('現在地を取得しています…');
+  navigator.geolocation.getCurrentPosition(
+    pos=>{
+      const lat = Math.round(pos.coords.latitude*1e7)/1e7;
+      const lng = Math.round(pos.coords.longitude*1e7)/1e7;
+      state.facility.lat = lat; state.facility.lng = lng;
+      $('#facGeo').value = lat+', '+lng;
+      save(); renderRoute();
+      setFacGeoStatus(GEO_DEFAULT_NOTE);
+      toast('現在地を取得しました');
+    },
+    err=>{
+      setFacGeoStatus(GEO_DEFAULT_NOTE);
+      toast('現在地を取得できませんでした（位置情報の許可をご確認ください）');
+    },
+    { enableHighAccuracy:true, timeout:12000 }
+  );
+});
+$('#btnGeoAddr').addEventListener('click', async ()=>{
+  const addr = ($('#facAddr').value||'').trim();
+  if(!addr){ toast('先に住所を入れてください'); return; }
+  setFacGeoStatus('住所から座標を調べています…');
+  $('#btnGeoAddr').disabled = true;
+  try{
+    const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=jp&q='+encodeURIComponent(addr);
+    const res = await fetch(url, { headers:{ 'Accept':'application/json' } });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const list = await res.json();
+    if(!list || !list.length) throw new Error('見つかりません');
+    const lat = Math.round(parseFloat(list[0].lat)*1e7)/1e7;
+    const lng = Math.round(parseFloat(list[0].lon)*1e7)/1e7;
+    state.facility.lat = lat; state.facility.lng = lng;
+    $('#facGeo').value = lat+', '+lng;
+    save(); renderRoute();
+    setFacGeoStatus(GEO_DEFAULT_NOTE);
+    toast('住所から座標を取得しました');
+  }catch(e){
+    setFacGeoStatus(GEO_DEFAULT_NOTE);
+    toast('座標が見つかりませんでした。住所の書き方を変えてお試しください');
+  }finally{
+    $('#btnGeoAddr').disabled = false;
+  }
+});
+
+/* --- 学校データを作成（地域から検索） --- */
+const PREFS = ['北海道','青森県','岩手県','宮城県','秋田県','山形県','福島県','茨城県','栃木県','群馬県',
+  '埼玉県','千葉県','東京都','神奈川県','新潟県','富山県','石川県','福井県','山梨県','長野県',
+  '岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県',
+  '鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県',
+  '佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
+(function initPrefSelect(){
+  const sel = $('#genPref');
+  if(!sel) return;
+  sel.innerHTML = '<option value="">選択してください</option>'
+    + PREFS.map(p=>'<option value="'+p+'">'+p+'</option>').join('');
+})();
+
+let genCities = [];
+function renderCityChips(){
+  const box = $('#cityChips');
+  if(!box) return;
+  if(genCities.length===0){ box.innerHTML = ''; return; }
+  box.innerHTML = genCities.map((c,i)=>
+    '<span class="chip">'+esc(c)+' <button type="button" data-i="'+i+'" aria-label="削除">×</button></span>'
+  ).join('');
+  box.querySelectorAll('button').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      genCities.splice(parseInt(b.dataset.i,10), 1);
+      renderCityChips();
+    });
+  });
+}
+function addCityFromInput(){
+  const inp = $('#genCityInput');
+  const v = (inp.value||'').trim();
+  if(!v) return;
+  if(!genCities.includes(v)) genCities.push(v);
+  inp.value = '';
+  renderCityChips();
+}
+$('#btnAddCity').addEventListener('click', addCityFromInput);
+$('#genCityInput').addEventListener('keydown', e=>{
+  if(e.key==='Enter'){ e.preventDefault(); addCityFromInput(); }
+});
+
+function classifySchoolKind(name){
+  if(/支援学校/.test(name)) return '支';
+  if(/義務教育学校/.test(name)) return '義';
+  if(/中学校/.test(name)) return '中';
+  if(/小学校/.test(name)) return '小';
+  return '他';
+}
+function escapeOverpassStr(s){ return String(s).replace(/\\/g,'\\\\').replace(/"/g,'\\"'); }
+function buildOverpassQuery(pref, cities){
+  const cityLines = cities.map(c=>'  area["name"="'+escapeOverpassStr(c)+'"](area.pref);').join('\n');
+  return '[out:json][timeout:60];\n'
+    + 'area["name"="'+escapeOverpassStr(pref)+'"]["admin_level"="4"]->.pref;\n'
+    + '(\n' + cityLines + '\n)->.cities;\n'
+    + 'nwr["amenity"="school"](area.cities);\n'
+    + 'out center tags;';
+}
+function addrFromTags(tags){
+  if(!tags) return '';
+  if(tags['addr:full']) return tags['addr:full'];
+  const parts = [];
+  if(tags['addr:province']) parts.push(tags['addr:province']);
+  if(tags['addr:city']) parts.push(tags['addr:city']);
+  if(tags['addr:suburb']) parts.push(tags['addr:suburb']);
+  if(tags['addr:neighbourhood']) parts.push(tags['addr:neighbourhood']);
+  if(tags['addr:housenumber']) parts.push(tags['addr:housenumber']);
+  return parts.join('');
+}
+$('#btnGenSchools').addEventListener('click', async ()=>{
+  const pref = $('#genPref').value;
+  const status = $('#genStatus');
+  if(!pref){ toast('都道府県を選んでください'); return; }
+  if(genCities.length===0){ toast('市区町村を1つ以上追加してください'); return; }
+  $('#btnGenSchools').disabled = true;
+  status.textContent = '検索中…（市区町村の数によっては1分ほどかかります）';
+  try{
+    const q = buildOverpassQuery(pref, genCities);
+    const res = await fetch('https://overpass-api.de/api/interpreter', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/x-www-form-urlencoded' },
+      body:'data='+encodeURIComponent(q)
+    });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const data = await res.json();
+    const elements = (data && data.elements) || [];
+    let added = 0, updated = 0, skipped = 0;
+    elements.forEach(el=>{
+      const tags = el.tags || {};
+      const name = tags.name;
+      const lat = el.lat!=null ? el.lat : (el.center ? el.center.lat : null);
+      const lng = el.lon!=null ? el.lon : (el.center ? el.center.lon : null);
+      if(!name || lat==null || lng==null){ skipped++; return; }
+      const kind = classifySchoolKind(name);
+      const addr = addrFromTags(tags);
+      const hit = state.schools.find(s=>s.name===name);
+      if(hit){
+        hit.lat = lat; hit.lng = lng;
+        if(addr) hit.addr = addr;
+        updated++;
+      }else{
+        state.seq = (state.seq||1000)+1;
+        state.schools.push({ id:'g'+state.seq, name, kind, addr, lat, lng, time:'15:00' });
+        added++;
+      }
+    });
+    save(); renderSchools(); renderPicks(); renderRoute();
+    status.textContent = '完了：'+added+'件追加・'+updated+'件更新'
+      + (skipped ? '（名前や座標が不明な'+skipped+'件はスキップしました）' : '')
+      + '。「学校」タブで内容をご確認ください。';
+    toast('学校データを作成しました（追加'+added+'・更新'+updated+'）');
+  }catch(e){
+    status.textContent = '取得できませんでした。通信環境をご確認のうえ、時間をおいて再度お試しください。';
+    toast('取得できませんでした');
+  }finally{
+    $('#btnGenSchools').disabled = false;
+  }
+});
 
 function applyImportedData(s){
   if(!s || !Array.isArray(s.schools)) return {ok:false};
