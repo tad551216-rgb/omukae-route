@@ -126,6 +126,17 @@ nav#tabbar button.on{color:var(--verm);font-weight:700;}
 .bulkbar{display:flex;gap:6px;align-items:center;margin:2px 0 12px;flex-wrap:wrap;font-size:.8rem;color:var(--indigo);}
 .bulkbar button{background:#fff;color:var(--verm);border:1.5px solid var(--verm);font-size:.85rem;padding:6px 13px;border-radius:99px;font-weight:700;}
 .bulkbar input{width:96px;flex:0 0 auto;text-align:center;}
+.qtset{display:inline-flex;align-items:center;gap:3px;}
+.qtset .qtedit{
+  background:#fff;color:var(--muted);border:1.5px solid var(--line);font-size:.72rem;font-weight:400;
+  width:24px;height:24px;padding:0;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;
+}
+.qtset.editing{background:#fff;border:1.5px solid var(--verm);border-radius:99px;padding:2px 3px 2px 8px;gap:5px;}
+.qtset .qtinput{width:94px;flex:0 0 auto;text-align:center;border:none;padding:2px 0;font-size:.85rem;}
+.qtset .qtsave{
+  background:var(--verm);color:#fff;border:none;width:24px;height:24px;padding:0;border-radius:50%;
+  display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;font-size:.85rem;font-weight:700;
+}
 
 /* ルート */
 .vhead{
@@ -208,13 +219,7 @@ textarea{min-height:110px;font-size:.8rem;}
 <section class="tab active" id="tab-today">
   <h2>今日のお迎え <span id="todayDate" style="font-weight:400;color:var(--muted);font-size:.8rem;"></span></h2>
   <p class="note">お迎えに行く学校をタップして選び、下校時刻と乗る人数を入れます。メモには児童の名前など。</p>
-  <div class="bulkbar">
-    <span>選んだ学校の時刻を一括で：</span>
-    <button data-bt="13:15">13:15</button>
-    <button data-bt="13:45">13:45</button>
-    <input type="time" id="bulkTime" value="15:00">
-    <button data-bt="">適用</button>
-  </div>
+  <div class="bulkbar" id="bulkbar"></div>
   <div class="filterbar" id="kindFilter"></div>
   <div id="pickList"></div>
   <div class="row" style="margin:12px 0;">
@@ -430,6 +435,7 @@ function load(){
   if(!s.plan || !Array.isArray(s.plan.assign)) s.plan = {assign:[]}; // assign: [{vid, stops:[schoolId]}]
   if(!s.picks) s.picks = {};
   Object.values(s.picks).forEach(p=>{ if(!('num' in p)) p.num = 1; });
+  if(!Array.isArray(s.quickTimes) || s.quickTimes.length!==2) s.quickTimes = ['13:15','13:45'];
   return s;
 }
 function save(){
@@ -591,17 +597,62 @@ function updatePickCount(){
   $('#pickCount').textContent = 'お迎え '+sel.length+' 校 ・ '+total+' 名';
   $('#btnBuild').disabled = sel.length===0;
 }
-document.querySelectorAll('.bulkbar button').forEach(b=>{
-  b.addEventListener('click', ()=>{
-    const t = b.dataset.bt || $('#bulkTime').value;
-    if(!toMin(t) && toMin(t)!==0){ toast('時刻を入れてください'); return; }
-    let n = 0;
-    state.schools.forEach(s=>{ const p=pickOf(s.id); if(p.on){ p.time=t; n++; } });
-    if(n===0){ toast('先に学校を選んでください'); return; }
-    save(); renderPicks();
-    toast(n+'校を '+t+' にしました');
+let bulkEditIdx = -1;
+function renderBulkbar(){
+  const box = $('#bulkbar');
+  const parts = ['<span>選んだ学校の時刻を一括で：</span>'];
+  state.quickTimes.forEach((t, i)=>{
+    if(bulkEditIdx === i){
+      parts.push('<span class="qtset editing">'
+        +'<input type="time" class="qtinput" value="'+t+'">'
+        +'<button type="button" class="qtsave" data-idx="'+i+'" aria-label="登録する">✓</button>'
+        +'</span>');
+    }else{
+      parts.push('<span class="qtset">'
+        +'<button type="button" class="qt" data-bt="'+t+'">'+esc(t)+'</button>'
+        +'<button type="button" class="qtedit" data-idx="'+i+'" aria-label="この時刻を登録し直す">✎</button>'
+        +'</span>');
+    }
   });
-});
+  parts.push('<input type="time" id="bulkTime" value="15:00">');
+  parts.push('<button type="button" data-bt="">適用</button>');
+  box.innerHTML = parts.join('');
+
+  box.querySelectorAll('.qt').forEach(b=>{
+    b.addEventListener('click', ()=> applyBulkTime(b.dataset.bt));
+  });
+  box.querySelectorAll('.qtedit').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      bulkEditIdx = parseInt(b.dataset.idx, 10);
+      renderBulkbar();
+      const inp = box.querySelector('.qtinput');
+      if(inp) inp.focus();
+    });
+  });
+  box.querySelectorAll('.qtsave').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const idx = parseInt(b.dataset.idx, 10);
+      const inp = box.querySelector('.qtinput');
+      const val = inp ? inp.value : '';
+      if(!toMin(val) && toMin(val)!==0){ toast('時刻を入れてください'); return; }
+      state.quickTimes[idx] = val;
+      bulkEditIdx = -1;
+      save();
+      renderBulkbar();
+      toast('ボタンの時刻を登録しました');
+    });
+  });
+  const applyBtn = box.querySelector('button[data-bt=""]');
+  if(applyBtn) applyBtn.addEventListener('click', ()=> applyBulkTime($('#bulkTime').value));
+}
+function applyBulkTime(t){
+  if(!toMin(t) && toMin(t)!==0){ toast('時刻を入れてください'); return; }
+  let n = 0;
+  state.schools.forEach(s=>{ const p=pickOf(s.id); if(p.on){ p.time=t; n++; } });
+  if(n===0){ toast('先に学校を選んでください'); return; }
+  save(); renderPicks();
+  toast(n+'校を '+t+' にしました');
+}
 $('#btnClearPicks').addEventListener('click', ()=>{
   Object.values(state.picks).forEach(p=>p.on=false);
   state.plan = {assign:[]};
@@ -1179,7 +1230,7 @@ $('#fileImportJson').addEventListener('change', (e)=>{
 
 /* ============ 初期化 ============ */
 function renderAll(){
-  renderFilter(); renderPicks(); renderRoute(); renderSchools(); renderVehicles(); renderSettings();
+  renderBulkbar(); renderFilter(); renderPicks(); renderRoute(); renderSchools(); renderVehicles(); renderSettings();
 }
 renderAll();
 
