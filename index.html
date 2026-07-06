@@ -288,7 +288,7 @@ textarea{min-height:110px;font-size:.8rem;}
 
   <h2>学校データを作成（地域から検索）</h2>
   <div class="card">
-    <p class="note" style="margin-top:0;">都道府県と市区町村を指定すると、その地域の小学校・中学校・支援学校などをまとめて学校リストに追加できます（地図データ OpenStreetMap を利用。インターネット接続が必要です）。既にある学校は座標・住所だけ更新され、二重登録にはなりません。</p>
+    <p class="note" style="margin-top:0;">都道府県と市区町村を指定すると、その地域の小学校・中学校・支援学校などをまとめて学校リストに追加できます（地図データ OpenStreetMap を利用。インターネット接続が必要です）。座標に住所が付いていない学校は、座標から住所を調べて補います。既にある学校は座標・住所だけ更新され、二重登録にはなりません。学校数が多いと数分かかることがあります。</p>
     <label class="fld" for="genPref">都道府県</label>
     <select id="genPref"></select>
     <label class="fld" for="genCityInput">市区町村（複数追加できます）</label>
@@ -1293,23 +1293,47 @@ $('#btnGenSchools').addEventListener('click', async ()=>{
     if(!res.ok) throw new Error('HTTP '+res.status);
     const data = await res.json();
     const elements = (data && data.elements) || [];
-    let added = 0, updated = 0, skipped = 0;
+
+    // 1回目：Overpassのタグから分かる範囲でリスト化
+    const candidates = [];
+    let skipped = 0;
     elements.forEach(el=>{
       const tags = el.tags || {};
       const name = tags.name;
       const lat = el.lat!=null ? el.lat : (el.center ? el.center.lat : null);
       const lng = el.lon!=null ? el.lon : (el.center ? el.center.lon : null);
       if(!name || lat==null || lng==null){ skipped++; return; }
-      const kind = classifySchoolKind(name);
-      const addr = addrFromTags(tags);
-      const hit = state.schools.find(s=>s.name===name);
+      candidates.push({ name, kind: classifySchoolKind(name), addr: addrFromTags(tags), lat, lng });
+    });
+
+    // 2回目：住所が分からなかった学校だけ、座標から住所を調べる（Nominatimの制限に配慮して1件ずつ）
+    const needAddr = candidates.filter(c=>!c.addr);
+    for(let i=0; i<needAddr.length; i++){
+      status.textContent = '住所を調べています…（'+(i+1)+'／'+needAddr.length+'件）';
+      const c = needAddr[i];
+      try{
+        const rurl = 'https://nominatim.openstreetmap.org/reverse?format=json&lat='+c.lat+'&lon='+c.lng+'&accept-language=ja&zoom=17';
+        const rres = await fetch(rurl, { headers:{ 'Accept':'application/json' } });
+        if(rres.ok){
+          const rjson = await rres.json();
+          const a = simplifyReverseAddr(rjson);
+          if(a) c.addr = a;
+        }
+      }catch(e){ /* この学校の住所はあきらめて次へ */ }
+      if(i < needAddr.length-1) await sleep(1100);
+    }
+
+    // 3回目：学校リストへ反映
+    let added = 0, updated = 0;
+    candidates.forEach(c=>{
+      const hit = state.schools.find(s=>s.name===c.name);
       if(hit){
-        hit.lat = lat; hit.lng = lng;
-        if(addr) hit.addr = addr;
+        hit.lat = c.lat; hit.lng = c.lng;
+        if(c.addr) hit.addr = c.addr;
         updated++;
       }else{
         state.seq = (state.seq||1000)+1;
-        state.schools.push({ id:'g'+state.seq, name, kind, addr, lat, lng, time:'15:00' });
+        state.schools.push({ id:'g'+state.seq, name:c.name, kind:c.kind, addr:c.addr||'', lat:c.lat, lng:c.lng, time:'15:00' });
         added++;
       }
     });
@@ -1325,6 +1349,22 @@ $('#btnGenSchools').addEventListener('click', async ()=>{
     $('#btnGenSchools').disabled = false;
   }
 });
+function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
+function simplifyReverseAddr(rjson){
+  if(!rjson) return '';
+  const a = rjson.address || {};
+  const parts = [];
+  if(a.state) parts.push(a.state);
+  if(a.city) parts.push(a.city);
+  else if(a.town) parts.push(a.town);
+  else if(a.county) parts.push(a.county);
+  if(a.suburb) parts.push(a.suburb);
+  if(a.neighbourhood) parts.push(a.neighbourhood);
+  if(a.road) parts.push(a.road);
+  if(a.house_number) parts.push(a.house_number);
+  const joined = parts.join('');
+  return joined || '';
+}
 
 function applyImportedData(s){
   if(!s || !Array.isArray(s.schools)) return {ok:false};
