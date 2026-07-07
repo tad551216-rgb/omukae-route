@@ -117,6 +117,12 @@ nav#tabbar button.on{color:var(--verm);font-weight:700;}
 }
 .pick .confirmChk input{width:auto;flex:none;accent-color:#2f7d52;}
 .pick .confirmChk.on{color:#2f7d52;font-weight:700;}
+.pick .bottomrow.confirmedRow{padding-top:2px;padding-bottom:2px;}
+.pick .confirmedSummary{font-size:.86rem;font-weight:700;color:#2f7d52;}
+.pick .btnUnconfirm{
+  margin-left:auto;background:#fff;color:var(--indigo);border:1.5px solid var(--line);
+  font-size:.74rem;padding:4px 11px;border-radius:99px;
+}
 .pick .stepper{flex:0 0 auto;display:flex;align-items:center;gap:3px;}
 .pick .stepper button.stp{
   width:32px;height:36px;padding:0;border-radius:6px;font-size:1.2rem;line-height:1;
@@ -245,6 +251,7 @@ textarea{min-height:110px;font-size:.8rem;}
 <section class="tab active" id="tab-today">
   <h2>今日のお迎え <span id="todayDate" style="font-weight:400;color:var(--muted);font-size:.8rem;"></span></h2>
   <p class="note">お迎えに行く学校をタップして選び、下校時刻と乗る人数を入れます。メモには児童の名前など。</p>
+  <p class="note" style="color:var(--verm);font-weight:700;margin-top:-6px;">時刻・人数が決まった学校は「確定」にチェックを。配車してルートを組む対象は、確定した学校だけです。</p>
   <div class="bulkbar" id="bulkbar"></div>
   <div class="filterbar" id="kindFilter"></div>
   <div id="pickList"></div>
@@ -632,7 +639,13 @@ function renderPicks(){
         +'<div class="nm"><div class="n1"><span class="kindtag'+(s.kind==='支'?' k支':'')+'">'+KIND_LABEL[s.kind]+'</span>'+esc(shortName(s.name))+'</div>'
         +(p.on?'<input class="memo" placeholder="メモ（名前など）" value="'+esc(p.memo)+'">':'')
         +'</div></div>';
-      if(p.on){
+      if(p.on && p.confirmed){
+        // 確定済み：詳細を畳んで、時刻・人数が一目で分かる要約行にする
+        html += '<div class="bottomrow confirmedRow">'
+          +'<span class="confirmedSummary">✅ '+esc(t)+'・'+(p.num||0)+'名で確定</span>'
+          +'<button type="button" class="btnUnconfirm">編集する</button>'
+          +'</div>';
+      }else if(p.on){
         html += '<div class="bottomrow">'
           +'<input class="tm" type="time" value="'+t+'">'
           +'<div class="stepper">'
@@ -649,6 +662,11 @@ function renderPicks(){
     }).join('');
     box.querySelectorAll('.pick').forEach(el=>{
       const id = el.dataset.id;
+      el.querySelector('.btnUnconfirm')?.addEventListener('click', ()=>{
+        pickOf(id).confirmed = false;
+        save();
+        renderPicks();
+      });
       el.querySelector('.tgl').addEventListener('click', ()=>{
         const p = pickOf(id);
         p.on = !p.on;
@@ -676,9 +694,10 @@ function renderPicks(){
 }
 function updatePickCount(){
   const sel = state.schools.filter(s=>pickOf(s.id).on);
+  const confirmed = sel.filter(s=>pickOf(s.id).confirmed);
   const total = sel.reduce((a,s)=>a+(pickOf(s.id).num||0), 0);
-  $('#pickCount').textContent = 'お迎え '+sel.length+' 校 ・ '+total+' 名';
-  $('#btnBuild').disabled = sel.length===0;
+  $('#pickCount').textContent = 'お迎え '+sel.length+'校（確定'+confirmed.length+'）・ '+total+'名';
+  $('#btnBuild').disabled = confirmed.length===0;
 }
 let bulkEditIdx = -1;
 function renderBulkbar(){
@@ -754,16 +773,26 @@ function activeVehicles(){
   return [{id:'v0', name:'送迎車', cap:Infinity}]; // 未登録なら1台とみなす
 }
 $('#btnBuild').addEventListener('click', ()=>{
+  const selected = state.schools.filter(s=>pickOf(s.id).on);
+  const confirmed = selected.filter(s=>pickOf(s.id).confirmed);
+  const unconfirmed = selected.length - confirmed.length;
+  if(confirmed.length===0){
+    toast('確定した学校がありません。時刻・人数を決めて「確定」にチェックしてください');
+    return;
+  }
   buildPlan();
   save();
   renderRoute();
   showTab('route');
+  if(unconfirmed>0){
+    toast('確定済みの'+confirmed.length+'校でルートを組みました（未確定の'+unconfirmed+'校は含めていません）');
+  }
 });
 function buildPlan(){
   const gap = state.settings.gap;
   const fac = facPoint();
   const items = state.schools
-    .filter(s => state.picks[s.id] && state.picks[s.id].on)
+    .filter(s => state.picks[s.id] && state.picks[s.id].on && state.picks[s.id].confirmed)
     .map(s => ({id:s.id, t:toMin(state.picks[s.id].time || s.time || '15:00'), num:state.picks[s.id].num||0}))
     .sort((a,b)=>a.t-b.t);
   // 便（wave）に分割：前の時刻から gap 分以上あいたら別便
@@ -868,11 +897,11 @@ function simulateVehicle(stopIds){
 
 /* ============ ②ルート表示 ============ */
 function planEntries(){
-  // 現在有効な assign（選択解除された学校を除外）
+  // 現在有効な assign（選択解除・未確定になった学校を除外）
   return (state.plan.assign||[]).map(a=>({
     vid: a.vid,
     stops: a.stops.filter(id=>{
-      const s = schoolById(id); return s && state.picks[id] && state.picks[id].on;
+      const s = schoolById(id); return s && state.picks[id] && state.picks[id].on && state.picks[id].confirmed;
     })
   })).filter(a=>a.stops.length);
 }
