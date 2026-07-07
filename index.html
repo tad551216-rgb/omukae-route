@@ -1219,30 +1219,36 @@ $('#btnGeoHere').addEventListener('click', ()=>{
     { enableHighAccuracy:true, timeout:12000 }
   );
 });
+async function geocodeAddress(addr){
+  try{
+    const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=jp&q='+encodeURIComponent(addr);
+    const res = await fetch(url, { headers:{ 'Accept':'application/json' } });
+    if(!res.ok) return null;
+    const list = await res.json();
+    if(!list || !list.length) return null;
+    return {
+      lat: Math.round(parseFloat(list[0].lat)*1e7)/1e7,
+      lng: Math.round(parseFloat(list[0].lon)*1e7)/1e7
+    };
+  }catch(e){ return null; }
+}
 $('#btnGeoAddr').addEventListener('click', async ()=>{
   const addr = ($('#facAddr').value||'').trim();
   if(!addr){ toast('先に住所を入れてください'); return; }
   setFacGeoStatus('住所から座標を調べています…');
   $('#btnGeoAddr').disabled = true;
-  try{
-    const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=jp&q='+encodeURIComponent(addr);
-    const res = await fetch(url, { headers:{ 'Accept':'application/json' } });
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    const list = await res.json();
-    if(!list || !list.length) throw new Error('見つかりません');
-    const lat = Math.round(parseFloat(list[0].lat)*1e7)/1e7;
-    const lng = Math.round(parseFloat(list[0].lon)*1e7)/1e7;
-    state.facility.lat = lat; state.facility.lng = lng;
-    $('#facGeo').value = lat+', '+lng;
+  const pos = await geocodeAddress(addr);
+  if(pos){
+    state.facility.lat = pos.lat; state.facility.lng = pos.lng;
+    $('#facGeo').value = pos.lat+', '+pos.lng;
     save(); renderRoute();
     setFacGeoStatus(GEO_DEFAULT_NOTE);
     toast('住所から座標を取得しました');
-  }catch(e){
+  }else{
     setFacGeoStatus(GEO_DEFAULT_NOTE);
     toast('座標が見つかりませんでした。住所の書き方を変えてお試しください');
-  }finally{
-    $('#btnGeoAddr').disabled = false;
   }
+  $('#btnGeoAddr').disabled = false;
 });
 
 /* --- 地図から緯度経度を選ぶ（中央固定ピン方式・Leafletを使用時だけ読み込み） --- */
@@ -1290,15 +1296,30 @@ $('#btnGeoMap').addEventListener('click', async ()=>{
     return;
   }
   $('#btnGeoMap').disabled = false;
+
   $('#dlgMap').showModal();
+  $('#mapPickCoord').textContent = '';
 
   let start, zoom;
   if(hasGeo(state.facility)){
+    // すでに座標があれば、そこを優先
     start = {lat:state.facility.lat, lng:state.facility.lng}; zoom = 17;
   }else{
-    const pos = await tryGetCurrentPosition(4000);
-    if(pos){ start = pos; zoom = 16; }
-    else{ start = {lat:34.6937, lng:135.5023}; zoom = 12; } // 見つからない時は大阪駅付近を無難な初期値に
+    const addr = ($('#facAddr').value||'').trim();
+    let addrPos = null;
+    if(addr){
+      $('#mapPickCoord').textContent = '入力中の住所付近を探しています…';
+      addrPos = await geocodeAddress(addr);
+    }
+    if(addrPos){
+      // 入力中の住所が見つかれば、その付近を初期表示に
+      start = addrPos; zoom = 16;
+    }else{
+      if(addr) $('#mapPickCoord').textContent = '現在地を確認しています…';
+      const pos = await tryGetCurrentPosition(4000);
+      if(pos){ start = pos; zoom = 16; }
+      else{ start = {lat:34.6937, lng:135.5023}; zoom = 12; } // 何も手がかりがない時は大阪駅付近を無難な初期値に
+    }
   }
 
   setTimeout(()=>{
