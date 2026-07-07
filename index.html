@@ -609,7 +609,7 @@ function showTab(name){
 }
 
 /* ============ ①今日のお迎え ============ */
-const KIND_FILTERS = [['all','すべて'],['小','小学校'],['中','中学校'],['支','支援学校']];
+const KIND_FILTERS = [['all','すべて'],['小','小学校'],['中','中学校'],['支','支援学校'],['unconfirmed','未確定']];
 function renderFilter(){
   $('#kindFilter').innerHTML = KIND_FILTERS.map(([k,l])=>
     '<button data-k="'+k+'" class="'+(state.filter===k?'on':'')+'">'+l+'</button>').join('');
@@ -627,9 +627,17 @@ function renderPicks(){
   $('#todayDate').textContent = todayLabel();
   const box = $('#pickList');
   const f = state.filter;
-  const shown = state.schools.filter(s=> f==='all' ? true : (f==='中' ? (s.kind==='中'||s.kind==='義') : s.kind===f));
-  if(shown.length===0){ box.innerHTML = '<div class="empty">学校タブから学校を追加してください</div>'; }
-  else{
+  const shown = state.schools.filter(s=>{
+    if(f==='all') return true;
+    if(f==='unconfirmed') return pickOf(s.id).on && !pickOf(s.id).confirmed;
+    if(f==='中') return s.kind==='中'||s.kind==='義';
+    return s.kind===f;
+  });
+  if(shown.length===0){
+    box.innerHTML = f==='unconfirmed'
+      ? '<div class="empty">未確定の学校はありません。すべて確定済みか、まだ何も選んでいません。</div>'
+      : '<div class="empty">学校タブから学校を追加してください</div>';
+  }else{
     box.innerHTML = shown.map(s=>{
       const p = pickOf(s.id);
       const t = p.time || s.time || '15:00';
