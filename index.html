@@ -288,7 +288,7 @@ textarea{min-height:110px;font-size:.8rem;}
 
   <h2>学校データを作成（地域から検索）</h2>
   <div class="card">
-    <p class="note" style="margin-top:0;">都道府県と市区町村を指定すると、その地域の小学校・中学校・支援学校などをまとめて学校リストに追加できます（地図データ OpenStreetMap を利用。インターネット接続が必要です）。座標に住所が付いていない学校は、座標から住所を調べて補います。既にある学校は座標・住所だけ更新され、二重登録にはなりません。学校数が多いと数分かかることがあります。</p>
+    <p class="note" style="margin-top:0;">都道府県と市区町村を指定すると、その地域の小学校・中学校・支援学校などをまとめて学校リストに追加できます（地図データ OpenStreetMap を利用。インターネット接続が必要です）。住所は、地図データにあればそれを使い、なければ「都道府県＋市区町村」まではすぐに入ります。既にある学校は座標・住所だけ更新され、二重登録にはなりません。</p>
     <label class="fld" for="genPref">都道府県</label>
     <select id="genPref"></select>
     <label class="fld" for="genCitySelect">市区町村（複数追加できます）</label>
@@ -305,6 +305,10 @@ textarea{min-height:110px;font-size:.8rem;}
       </div>
     </details>
     <div id="cityChips" style="margin:8px 0 4px;"></div>
+    <label style="display:flex;align-items:flex-start;gap:8px;font-size:.83rem;color:var(--ink);margin:10px 0 4px;line-height:1.5;">
+      <input type="checkbox" id="genDetailAddr" style="width:auto;flex:0 0 auto;margin-top:3px;">
+      <span>番地までの詳しい住所も調べる（学校数が多いと数分かかります。チェックしないと「都道府県＋市区町村」までの住所になりますが、その分すぐ終わります）</span>
+    </label>
     <button class="wide verm" id="btnGenSchools" style="margin-top:8px;">この地域の学校データを作成</button>
     <p class="note" id="genStatus" style="margin-bottom:0;"></p>
   </div>
@@ -1318,12 +1322,11 @@ function classifySchoolKind(name){
   return '他';
 }
 function escapeOverpassStr(s){ return String(s).replace(/\\/g,'\\\\').replace(/"/g,'\\"'); }
-function buildOverpassQuery(pref, cities){
-  const cityLines = cities.map(c=>'  area["name"="'+escapeOverpassStr(c)+'"](area.pref);').join('\n');
-  return '[out:json][timeout:60];\n'
+function buildOverpassQueryForCity(pref, city){
+  return '[out:json][timeout:40];\n'
     + 'area["name"="'+escapeOverpassStr(pref)+'"]["admin_level"="4"]->.pref;\n'
-    + '(\n' + cityLines + '\n)->.cities;\n'
-    + 'nwr["amenity"="school"](area.cities);\n'
+    + 'area["name"="'+escapeOverpassStr(city)+'"](area.pref)->.a;\n'
+    + 'nwr["amenity"="school"](area.a);\n'
     + 'out center tags;';
 }
 function addrFromTags(tags){
@@ -1342,46 +1345,57 @@ $('#btnGenSchools').addEventListener('click', async ()=>{
   const status = $('#genStatus');
   if(!pref){ toast('都道府県を選んでください'); return; }
   if(genCities.length===0){ toast('市区町村を1つ以上追加してください'); return; }
+  const wantDetail = $('#genDetailAddr').checked;
   $('#btnGenSchools').disabled = true;
-  status.textContent = '検索中…（市区町村の数によっては1分ほどかかります）';
+  const candidates = [];
+  let skipped = 0;
   try{
-    const q = buildOverpassQuery(pref, genCities);
-    const res = await fetch('https://overpass-api.de/api/interpreter', {
-      method:'POST',
-      headers:{ 'Content-Type':'application/x-www-form-urlencoded' },
-      body:'data='+encodeURIComponent(q)
-    });
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    const data = await res.json();
-    const elements = (data && data.elements) || [];
+    // 1回目：市区町村ごとにOverpassへ問い合わせ（住所が無ければ「都道府県＋市区町村」を即時に補う）
+    for(let ci=0; ci<genCities.length; ci++){
+      const city = genCities[ci];
+      status.textContent = '検索中…（'+city+'　'+(ci+1)+'／'+genCities.length+'）';
+      const q = buildOverpassQueryForCity(pref, city);
+      const res = await fetch('https://overpass-api.de/api/interpreter', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/x-www-form-urlencoded' },
+        body:'data='+encodeURIComponent(q)
+      });
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      const data = await res.json();
+      const elements = (data && data.elements) || [];
+      elements.forEach(el=>{
+        const tags = el.tags || {};
+        const name = tags.name;
+        const lat = el.lat!=null ? el.lat : (el.center ? el.center.lat : null);
+        const lng = el.lon!=null ? el.lon : (el.center ? el.center.lon : null);
+        if(!name || lat==null || lng==null){ skipped++; return; }
+        const tagAddr = addrFromTags(tags);
+        candidates.push({
+          name, kind: classifySchoolKind(name),
+          addr: tagAddr || (pref+city),
+          needDetail: !tagAddr,
+          lat, lng
+        });
+      });
+    }
 
-    // 1回目：Overpassのタグから分かる範囲でリスト化
-    const candidates = [];
-    let skipped = 0;
-    elements.forEach(el=>{
-      const tags = el.tags || {};
-      const name = tags.name;
-      const lat = el.lat!=null ? el.lat : (el.center ? el.center.lat : null);
-      const lng = el.lon!=null ? el.lon : (el.center ? el.center.lon : null);
-      if(!name || lat==null || lng==null){ skipped++; return; }
-      candidates.push({ name, kind: classifySchoolKind(name), addr: addrFromTags(tags), lat, lng });
-    });
-
-    // 2回目：住所が分からなかった学校だけ、座標から住所を調べる（Nominatimの制限に配慮して1件ずつ）
-    const needAddr = candidates.filter(c=>!c.addr);
-    for(let i=0; i<needAddr.length; i++){
-      status.textContent = '住所を調べています…（'+(i+1)+'／'+needAddr.length+'件）';
-      const c = needAddr[i];
-      try{
-        const rurl = 'https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&lat='+c.lat+'&lon='+c.lng+'&accept-language=ja&zoom=18';
-        const rres = await fetch(rurl, { headers:{ 'Accept':'application/json' } });
-        if(rres.ok){
-          const rjson = await rres.json();
-          const a = simplifyReverseAddr(rjson, c.name);
-          if(a) c.addr = a;
-        }
-      }catch(e){ /* この学校の住所はあきらめて次へ */ }
-      if(i < needAddr.length-1) await sleep(1100);
+    // 2回目（任意）：詳しい住所を希望する場合のみ、足りない分を座標から調べる（Nominatimの制限に配慮して1件ずつ）
+    if(wantDetail){
+      const needAddr = candidates.filter(c=>c.needDetail);
+      for(let i=0; i<needAddr.length; i++){
+        status.textContent = '詳しい住所を調べています…（'+(i+1)+'／'+needAddr.length+'件）';
+        const c = needAddr[i];
+        try{
+          const rurl = 'https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&lat='+c.lat+'&lon='+c.lng+'&accept-language=ja&zoom=18';
+          const rres = await fetch(rurl, { headers:{ 'Accept':'application/json' } });
+          if(rres.ok){
+            const rjson = await rres.json();
+            const a = simplifyReverseAddr(rjson, c.name);
+            if(a) c.addr = a;
+          }
+        }catch(e){ /* この学校の詳しい住所はあきらめて、都道府県＋市区町村のまま次へ */ }
+        if(i < needAddr.length-1) await sleep(1100);
+      }
     }
 
     // 3回目：学校リストへ反映
