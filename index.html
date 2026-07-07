@@ -281,7 +281,8 @@ textarea{min-height:110px;font-size:.8rem;}
       <button class="small ghost" id="btnGeoAddr">🔍 住所から取得</button>
     </div>
     <button class="ghost" id="btnGeoMap" style="width:100%;margin-top:6px;">🗺️ 地図から取得</button>
-    <p class="note" id="geoStatus" style="margin-bottom:0;">「現在地から取得」は事業所にいるときに、「住所から取得」は上の住所をもとに、「地図から取得」は地図を動かして目で見ながら座標を調べます（どれもインターネット接続が必要です）。</p>
+    <a class="mapbtn" id="btnGeoGoogle" href="https://www.google.com/maps/" target="_blank" rel="noopener" style="background:#fff;color:var(--indigo);border:1.5px solid var(--indigo);margin-top:6px;">📍 Googleマップで確認する</a>
+    <p class="note" id="geoStatus" style="margin-bottom:0;">「現在地から取得」は事業所にいるときに、「住所から取得」は上の住所をもとに、「地図から取得」は地図を動かして目で見ながら座標を調べます（どれもインターネット接続が必要です）。「Googleマップで確認する」は、入力中の住所（無ければ座標）をGoogleマップで開いて見比べられます。長押しで出た座標を上の欄に貼り付けることもできます。</p>
   </div>
 
   <h2>移動時間の見積もり</h2>
@@ -1175,14 +1176,30 @@ function renderSettings(){
   $('#setSpeed').value = state.settings.speed;
   $('#setBoard').value = state.settings.board;
   $('#setGap').value = state.settings.gap;
+  updateGoogleMapsLink();
+}
+function updateGoogleMapsLink(){
+  const a = $('#btnGeoGoogle');
+  if(!a) return;
+  let url;
+  if(hasGeo(state.facility)){
+    url = 'https://www.google.com/maps/search/?api=1&query='+state.facility.lat+','+state.facility.lng;
+  }else{
+    const addr = ($('#facAddr').value||'').trim();
+    url = addr
+      ? 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(addr)
+      : 'https://www.google.com/maps/';
+  }
+  a.href = url;
 }
 $('#facName').addEventListener('change', e=>{ state.facility.name = e.target.value.trim(); save(); renderRoute(); });
-$('#facAddr').addEventListener('change', e=>{ state.facility.addr = e.target.value.trim(); save(); renderRoute(); });
+$('#facAddr').addEventListener('change', e=>{ state.facility.addr = e.target.value.trim(); save(); renderRoute(); updateGoogleMapsLink(); });
+$('#facAddr').addEventListener('input', updateGoogleMapsLink);
 $('#facGeo').addEventListener('change', e=>{
   const g = parseGeo(e.target.value);
   if(!g.ok){ toast('座標は「34.48, 135.42」の形で'); return; }
   state.facility.lat = g.lat; state.facility.lng = g.lng;
-  save(); renderRoute();
+  save(); renderRoute(); updateGoogleMapsLink();
 });
 function bindNum(sel, key, min, max){
   $(sel).addEventListener('change', e=>{
@@ -1210,7 +1227,7 @@ $('#btnGeoHere').addEventListener('click', ()=>{
       const lng = Math.round(pos.coords.longitude*1e7)/1e7;
       state.facility.lat = lat; state.facility.lng = lng;
       $('#facGeo').value = lat+', '+lng;
-      save(); renderRoute();
+      save(); renderRoute(); updateGoogleMapsLink();
       setFacGeoStatus(GEO_DEFAULT_NOTE);
       toast('現在地を取得しました');
     },
@@ -1243,7 +1260,7 @@ $('#btnGeoAddr').addEventListener('click', async ()=>{
   if(pos){
     state.facility.lat = pos.lat; state.facility.lng = pos.lng;
     $('#facGeo').value = pos.lat+', '+pos.lng;
-    save(); renderRoute();
+    save(); renderRoute(); updateGoogleMapsLink();
     setFacGeoStatus(GEO_DEFAULT_NOTE);
     toast('住所から座標を取得しました');
   }else{
@@ -1345,7 +1362,7 @@ $('#btnMapUse').addEventListener('click', ()=>{
   const lng = Math.round(c.lng*1e7)/1e7;
   state.facility.lat = lat; state.facility.lng = lng;
   $('#facGeo').value = lat+', '+lng;
-  save(); renderRoute();
+  save(); renderRoute(); updateGoogleMapsLink();
   $('#dlgMap').close();
   toast('地図から座標を設定しました');
 });
