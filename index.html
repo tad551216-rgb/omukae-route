@@ -273,7 +273,7 @@ textarea{min-height:110px;font-size:.8rem;}
     <label class="fld" for="facName">事業所の名前</label>
     <input id="facName" placeholder="例：放課後デイ ○○">
     <label class="fld" for="facAddr">住所（Googleマップで検索できる書き方）</label>
-    <input id="facAddr" placeholder="例：大阪府和泉市府中町○丁目○-○">
+    <input id="facAddr" placeholder="例：〇〇県〇〇市〇〇町1-2-3">
     <label class="fld" for="facGeo">緯度,経度（省略可・遅延見込みが正確になります）</label>
     <input id="facGeo" placeholder="例：34.4839, 135.4256" inputmode="decimal">
     <div class="row" style="margin-top:8px;">
@@ -311,7 +311,7 @@ textarea{min-height:110px;font-size:.8rem;}
     <details style="margin-top:6px;">
       <summary style="font-size:.78rem;color:var(--indigo);cursor:pointer;">一覧にない場合は、名前を直接入力する</summary>
       <div class="row" style="margin-top:6px;">
-        <input id="genCityInputManual" placeholder="例：和泉市">
+        <input id="genCityInputManual" placeholder="例：〇〇市">
         <button class="small ghost shrink" id="btnAddCityManual">＋ 追加</button>
       </div>
     </details>
@@ -358,7 +358,7 @@ textarea{min-height:110px;font-size:.8rem;}
 <dialog id="dlgSchool">
   <h2 style="margin-top:0;" id="dlgSchoolTitle">学校を追加</h2>
   <label class="fld" for="scName">学校名</label>
-  <input id="scName" placeholder="例：和泉市立○○小学校">
+  <input id="scName" placeholder="例：〇〇市立○○小学校">
   <label class="fld" for="scKind">区分</label>
   <select id="scKind">
     <option value="小">小学校</option>
@@ -368,7 +368,7 @@ textarea{min-height:110px;font-size:.8rem;}
     <option value="他">その他</option>
   </select>
   <label class="fld" for="scAddr">住所（省略可・地図検索の精度が上がります）</label>
-  <input id="scAddr" placeholder="例：大阪府和泉市○○町○-○">
+  <input id="scAddr" placeholder="例：〇〇県〇〇市○○町○-○">
   <label class="fld" for="scGeo">緯度,経度（省略可）</label>
   <input id="scGeo" placeholder="例：34.4839, 135.4256" inputmode="decimal">
   <p class="note">Googleマップで学校を長押しすると座標が出ます。移動時間・遅延の見込みと、同時刻の学校の並べ替えに使います。</p>
@@ -576,7 +576,9 @@ function parseGeo(text){
   return {ok:false};
 }
 function shortName(name){
-  return name.replace(/^和泉市立/,'').replace(/^大阪府立/,'');
+  // 「〇〇市立」「〇〇区立」「〇〇町立」「〇〇村立」「〇〇都立」「〇〇道立」「〇〇府立」「〇〇県立」など、
+  // 自治体名＋「立」の接頭辞を地域を問わず取り除く（表示を短くするための見た目調整）
+  return name.replace(/^.{1,10}?(都|道|府|県|市|区|町|村)立/, '');
 }
 const MARU = '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳';
 
@@ -1301,25 +1303,23 @@ $('#btnGeoMap').addEventListener('click', async ()=>{
   $('#mapPickCoord').textContent = '';
 
   let start, zoom;
-  if(hasGeo(state.facility)){
-    // すでに座標があれば、そこを優先
+  const addr = ($('#facAddr').value||'').trim();
+  let addrPos = null;
+  if(addr){
+    $('#mapPickCoord').textContent = '入力中の住所付近を探しています…';
+    addrPos = await geocodeAddress(addr);
+  }
+  if(addrPos){
+    // 入力中の住所が見つかれば、それを最優先（座標欄をまだ更新していなくても、今まさに直そうとしている住所を尊重する）
+    start = addrPos; zoom = 16;
+  }else if(hasGeo(state.facility)){
+    // 住所からは分からなかったが、すでに座標が保存されていればそこを使う
     start = {lat:state.facility.lat, lng:state.facility.lng}; zoom = 17;
   }else{
-    const addr = ($('#facAddr').value||'').trim();
-    let addrPos = null;
-    if(addr){
-      $('#mapPickCoord').textContent = '入力中の住所付近を探しています…';
-      addrPos = await geocodeAddress(addr);
-    }
-    if(addrPos){
-      // 入力中の住所が見つかれば、その付近を初期表示に
-      start = addrPos; zoom = 16;
-    }else{
-      if(addr) $('#mapPickCoord').textContent = '現在地を確認しています…';
-      const pos = await tryGetCurrentPosition(4000);
-      if(pos){ start = pos; zoom = 16; }
-      else{ start = {lat:34.6937, lng:135.5023}; zoom = 12; } // 何も手がかりがない時は大阪駅付近を無難な初期値に
-    }
+    if(addr) $('#mapPickCoord').textContent = '現在地を確認しています…';
+    const pos = await tryGetCurrentPosition(4000);
+    if(pos){ start = pos; zoom = 16; }
+    else{ start = {lat:34.6937, lng:135.5023}; zoom = 12; } // 何も手がかりがない時は大阪駅付近を無難な初期値に
   }
 
   setTimeout(()=>{
