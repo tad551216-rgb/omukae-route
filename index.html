@@ -97,6 +97,8 @@ nav#tabbar button.on{color:var(--verm);font-weight:700;}
   border:1px solid var(--line);border-radius:9px;padding:9px 10px;margin-bottom:7px;
 }
 .pick.on{border-color:var(--indigo);background:#fff;}
+.pick.confirmed{border-color:#2f7d52;}
+.pick.confirmed .toprow .n1{color:#215c3c;}
 .pick .toprow{display:flex;align-items:center;gap:7px;}
 .pick .tgl{
   flex:0 0 auto;width:40px;height:40px;border-radius:8px;font-size:1.05rem;
@@ -107,8 +109,14 @@ nav#tabbar button.on{color:var(--verm);font-weight:700;}
 .pick .nm{flex:1;min-width:0;}
 .pick .nm .n1{font-size:.9rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .pick .nm input.memo{width:100%;border:none;border-bottom:1px dashed var(--line);border-radius:0;padding:2px 2px;font-size:.78rem;background:transparent;margin-top:2px;}
-.pick .bottomrow{display:flex;align-items:center;gap:8px;padding-left:47px;}
+.pick .bottomrow{display:flex;align-items:center;gap:8px;padding-left:47px;flex-wrap:wrap;}
 .pick .bottomrow input.tm{flex:0 0 92px;text-align:center;font-variant-numeric:tabular-nums;padding:8px 4px;}
+.pick .confirmChk{
+  display:inline-flex;align-items:center;gap:4px;font-size:.76rem;color:var(--muted);
+  margin-left:auto;white-space:nowrap;cursor:pointer;
+}
+.pick .confirmChk input{width:auto;flex:none;accent-color:#2f7d52;}
+.pick .confirmChk.on{color:#2f7d52;font-weight:700;}
 .pick .stepper{flex:0 0 auto;display:flex;align-items:center;gap:3px;}
 .pick .stepper button.stp{
   width:32px;height:36px;padding:0;border-radius:6px;font-size:1.2rem;line-height:1;
@@ -603,8 +611,9 @@ function renderFilter(){
   });
 }
 function pickOf(id){
-  if(!state.picks[id]) state.picks[id] = {on:false, time:null, memo:'', num:1};
+  if(!state.picks[id]) state.picks[id] = {on:false, time:null, memo:'', num:1, confirmed:false};
   if(!('num' in state.picks[id])) state.picks[id].num = 1;
+  if(!('confirmed' in state.picks[id])) state.picks[id].confirmed = false;
   return state.picks[id];
 }
 function renderPicks(){
@@ -617,7 +626,7 @@ function renderPicks(){
     box.innerHTML = shown.map(s=>{
       const p = pickOf(s.id);
       const t = p.time || s.time || '15:00';
-      let html = '<div class="pick'+(p.on?' on':'')+'" data-id="'+s.id+'">';
+      let html = '<div class="pick'+(p.on?' on':'')+(p.confirmed?' confirmed':'')+'" data-id="'+s.id+'">';
       html += '<div class="toprow">'
         +'<button class="tgl" aria-label="お迎え切替">'+(p.on?'✓':'＋')+'</button>'
         +'<div class="nm"><div class="n1"><span class="kindtag'+(s.kind==='支'?' k支':'')+'">'+KIND_LABEL[s.kind]+'</span>'+esc(shortName(s.name))+'</div>'
@@ -632,6 +641,7 @@ function renderPicks(){
           +'<button type="button" class="stp plus" aria-label="人数を増やす" tabindex="-1">＋</button>'
           +'</div>'
           +'<span class="unit">名</span>'
+          +'<label class="confirmChk'+(p.confirmed?' on':'')+'"><input type="checkbox" class="pconfirm"'+(p.confirmed?' checked':'')+'>確定</label>'
           +'</div>';
       }
       html += '</div>';
@@ -655,6 +665,11 @@ function renderPicks(){
         const p = pickOf(id); p.num = Math.min(30, (p.num||0) + 1); numInput.value = p.num; save(); updatePickCount();
       });
       el.querySelector('.memo')?.addEventListener('change', e=>{ pickOf(id).memo = e.target.value; save(); });
+      el.querySelector('.pconfirm')?.addEventListener('change', e=>{
+        pickOf(id).confirmed = e.target.checked;
+        save();
+        renderPicks();
+      });
     });
   }
   updatePickCount();
@@ -715,11 +730,17 @@ function renderBulkbar(){
 }
 function applyBulkTime(t){
   if(!toMin(t) && toMin(t)!==0){ toast('時刻を入れてください'); return; }
-  let n = 0;
-  state.schools.forEach(s=>{ const p=pickOf(s.id); if(p.on){ p.time=t; n++; } });
-  if(n===0){ toast('先に学校を選んでください'); return; }
+  let n = 0, skipped = 0;
+  state.schools.forEach(s=>{
+    const p=pickOf(s.id);
+    if(!p.on) return;
+    if(p.confirmed){ skipped++; return; }
+    p.time=t; n++;
+  });
+  if(n===0 && skipped===0){ toast('先に学校を選んでください'); return; }
+  if(n===0 && skipped>0){ toast('選んだ学校はすべて確定済みのため、変更しませんでした'); return; }
   save(); renderPicks();
-  toast(n+'校を '+t+' にしました');
+  toast(n+'校を '+t+' にしました'+(skipped?'（確定済み'+skipped+'校は対象外）':''));
 }
 $('#btnClearPicks').addEventListener('click', ()=>{
   Object.values(state.picks).forEach(p=>p.on=false);
