@@ -197,6 +197,16 @@ dialog{
 }
 dialog::backdrop{background:rgba(30,58,88,.45);}
 textarea{min-height:110px;font-size:.8rem;}
+#mapPickWrap{
+  position:relative;height:52vh;min-height:260px;max-height:400px;
+  border-radius:9px;overflow:hidden;border:1.5px solid var(--line);background:#e9e6d8;
+}
+#mapPick{width:100%;height:100%;}
+#mapPinCenter{
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-92%);
+  font-size:2.2rem;pointer-events:none;z-index:500;
+  filter:drop-shadow(0 2px 2px rgba(0,0,0,.35));
+}
 .toast{
   position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom));transform:translateX(-50%);
   background:var(--indigo-deep);color:#fff;padding:9px 18px;border-radius:99px;font-size:.85rem;
@@ -246,7 +256,7 @@ textarea{min-height:110px;font-size:.8rem;}
 <!-- ③学校マスタ -->
 <section class="tab" id="tab-school">
   <h2>学校のリスト</h2>
-  <p class="note">学校はまだ登録されていません。「設定」タブの「学校データを作成」で都道府県・市区町村を指定すると、その地域の学校をまとめて登録できます。1校ずつ登録したいときは、下の「＋ 学校を追加」からどうぞ。緯度・経度を登録すると、移動時間と遅延の見込みが正確になります。</p>
+  <p class="note">和泉市立の小・中学校、義務教育学校、和泉支援学校をあらかじめ登録しています。使わない学校は削除して、実際にお迎えのある学校だけに絞ると使いやすくなります。緯度・経度を登録すると、移動時間と遅延の見込みが正確になります。</p>
   <button class="small" id="btnAddSchool">＋ 学校を追加</button>
   <div id="schoolList" style="margin-top:10px;"></div>
 </section>
@@ -263,14 +273,15 @@ textarea{min-height:110px;font-size:.8rem;}
     <label class="fld" for="facName">事業所の名前</label>
     <input id="facName" placeholder="例：放課後デイ ○○">
     <label class="fld" for="facAddr">住所（Googleマップで検索できる書き方）</label>
-    <input id="facAddr" placeholder="例：〇〇県〇〇市〇〇町1-2-3">
+    <input id="facAddr" placeholder="例：大阪府和泉市府中町○丁目○-○">
     <label class="fld" for="facGeo">緯度,経度（省略可・遅延見込みが正確になります）</label>
     <input id="facGeo" placeholder="例：34.4839, 135.4256" inputmode="decimal">
     <div class="row" style="margin-top:8px;">
       <button class="small ghost" id="btnGeoHere">📍 現在地から取得</button>
       <button class="small ghost" id="btnGeoAddr">🔍 住所から取得</button>
     </div>
-    <p class="note" id="geoStatus" style="margin-bottom:0;">「現在地から取得」は事業所にいるときに、「住所から取得」は上の住所をもとに座標を調べます（インターネット接続が必要です）。</p>
+    <button class="ghost" id="btnGeoMap" style="width:100%;margin-top:6px;">🗺️ 地図から取得</button>
+    <p class="note" id="geoStatus" style="margin-bottom:0;">「現在地から取得」は事業所にいるときに、「住所から取得」は上の住所をもとに、「地図から取得」は地図を動かして目で見ながら座標を調べます（どれもインターネット接続が必要です）。</p>
   </div>
 
   <h2>移動時間の見積もり</h2>
@@ -300,7 +311,7 @@ textarea{min-height:110px;font-size:.8rem;}
     <details style="margin-top:6px;">
       <summary style="font-size:.78rem;color:var(--indigo);cursor:pointer;">一覧にない場合は、名前を直接入力する</summary>
       <div class="row" style="margin-top:6px;">
-        <input id="genCityInputManual" placeholder="例：〇〇市">
+        <input id="genCityInputManual" placeholder="例：和泉市">
         <button class="small ghost shrink" id="btnAddCityManual">＋ 追加</button>
       </div>
     </details>
@@ -347,7 +358,7 @@ textarea{min-height:110px;font-size:.8rem;}
 <dialog id="dlgSchool">
   <h2 style="margin-top:0;" id="dlgSchoolTitle">学校を追加</h2>
   <label class="fld" for="scName">学校名</label>
-  <input id="scName" placeholder="例：〇〇市立○○小学校">
+  <input id="scName" placeholder="例：和泉市立○○小学校">
   <label class="fld" for="scKind">区分</label>
   <select id="scKind">
     <option value="小">小学校</option>
@@ -357,7 +368,7 @@ textarea{min-height:110px;font-size:.8rem;}
     <option value="他">その他</option>
   </select>
   <label class="fld" for="scAddr">住所（省略可・地図検索の精度が上がります）</label>
-  <input id="scAddr" placeholder="例：〇〇県〇〇市○○町○-○">
+  <input id="scAddr" placeholder="例：大阪府和泉市○○町○-○">
   <label class="fld" for="scGeo">緯度,経度（省略可）</label>
   <input id="scGeo" placeholder="例：34.4839, 135.4256" inputmode="decimal">
   <p class="note">Googleマップで学校を長押しすると座標が出ます。移動時間・遅延の見込みと、同時刻の学校の並べ替えに使います。</p>
@@ -395,6 +406,20 @@ textarea{min-height:110px;font-size:.8rem;}
   </div>
 </dialog>
 
+<dialog id="dlgMap">
+  <h2 style="margin-top:0;">地図から位置を選ぶ</h2>
+  <p class="note">地図を指で動かして、中央のピンを事業所の場所に合わせてください（ピン自体は動かせません。地図の方を動かします）。</p>
+  <div id="mapPickWrap">
+    <div id="mapPick"></div>
+    <div id="mapPinCenter">📍</div>
+  </div>
+  <p class="note" id="mapPickCoord" style="text-align:center;margin-bottom:0;"></p>
+  <div class="row" style="margin-top:12px;">
+    <button class="ghost" id="btnMapCancel">やめる</button>
+    <button class="verm" id="btnMapUse">ここに設定する</button>
+  </div>
+</dialog>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -403,8 +428,41 @@ textarea{min-height:110px;font-size:.8rem;}
 const STORE_KEY = 'omukae-techo-v1';
 const KIND_LABEL = {'小':'小','中':'中','義':'義','支':'支援','他':'他'};
 
-/* --- 学校マスタ（公開版は空。設定タブの「学校データを作成」か、学校タブの「＋ 学校を追加」で登録） --- */
+/* --- 初期学校リスト（和泉市 2026年時点の公開情報） --- */
 const SCHOOL_MASTER = [
+  {name:"和泉市立国府小学校", kind:"小", addr:"大阪府和泉市府中町2丁目5-20", lat:34.483213, lng:135.424916, time:"15:00"},
+  {name:"和泉市立和気小学校", kind:"小", addr:"大阪府和泉市和気町4丁目9-1", lat:34.4755079, lng:135.429172, time:"15:00"},
+  {name:"和泉市立伯太小学校", kind:"小", addr:"大阪府和泉市伯太町2丁目24-22", lat:34.492018, lng:135.437134, time:"15:00"},
+  {name:"和泉市立池上小学校", kind:"小", addr:"大阪府和泉市池上町3丁目14-45", lat:34.502088, lng:135.430332, time:"15:00"},
+  {name:"和泉市立黒鳥小学校", kind:"小", addr:"大阪府和泉市黒鳥町1丁目6-5", lat:34.4897049, lng:135.4373073, time:"15:00"},
+  {name:"和泉市立芦部小学校", kind:"小", addr:"大阪府和泉市芦部町224-3", lat:34.481164, lng:135.441597, time:"15:00"},
+  {name:"和泉市立北池田小学校", kind:"小", addr:"大阪府和泉市池田下町1670", lat:34.4710082, lng:135.4610607, time:"15:00"},
+  {name:"和泉市立いぶき野小学校", kind:"小", addr:"大阪府和泉市いぶき野3丁目3-1", lat:34.4669601, lng:135.4525181, time:"15:00"},
+  {name:"和泉市立南池田小学校", kind:"小", addr:"大阪府和泉市納家町181", lat:34.447593, lng:135.474312, time:"15:00"},
+  {name:"和泉市立緑ケ丘小学校", kind:"小", addr:"大阪府和泉市緑ケ丘3丁目4-1", lat:34.4461813, lng:135.4593025, time:"15:00"},
+  {name:"和泉市立青葉はつが野小学校", kind:"小", addr:"大阪府和泉市はつが野1丁目50-1", lat:34.442946, lng:135.463171, time:"15:00"},
+  {name:"和泉市立北松尾小学校", kind:"小", addr:"大阪府和泉市唐国町3丁目3-19", lat:34.4588568, lng:135.4462161, time:"15:00"},
+  {name:"和泉市立南松尾小学校", kind:"小", addr:"大阪府和泉市久井町430", lat:34.4196547, lng:135.4584114, time:"15:00"},
+  {name:"和泉市立横山小学校", kind:"小", addr:"大阪府和泉市北田中町183", lat:34.4288278, lng:135.4952189, time:"15:00"},
+  {name:"和泉市立南横山小学校", kind:"小", addr:"大阪府和泉市父鬼町1506", lat:34.395734, lng:135.46739, time:"15:00"},
+  {name:"和泉市立幸小学校", kind:"小", addr:"大阪府和泉市幸3丁目3-1", lat:34.499705, lng:135.436265, time:"15:00"},
+  {name:"和泉市立信太小学校", kind:"小", addr:"大阪府和泉市尾野町2丁目8-17", lat:34.5063823, lng:135.4442053, time:"15:00"},
+  {name:"和泉市立鶴山台北小学校", kind:"小", addr:"大阪府和泉市鶴山台1丁目9-1", lat:34.5078981, lng:135.4516445, time:"15:00"},
+  {name:"和泉市立鶴山台南小学校", kind:"小", addr:"大阪府和泉市鶴山台4丁目1-1", lat:34.499453, lng:135.4487468, time:"15:00"},
+  {name:"和泉市立光明台北小学校", kind:"小", addr:"大阪府和泉市光明台1丁目35-1", lat:34.45714, lng:135.4826773, time:"15:00"},
+  {name:"和泉市立光明台南小学校", kind:"小", addr:"大阪府和泉市光明台3丁目8-1", lat:34.4526227, lng:135.4892354, time:"15:00"},
+  {name:"和泉市立和泉中学校", kind:"中", addr:"大阪府和泉市伯太町1丁目2-1", lat:34.4924702, lng:135.429343, time:"15:00"},
+  {name:"和泉市立郷荘中学校", kind:"中", addr:"大阪府和泉市寺門町1丁目14-35", lat:34.474164, lng:135.433212, time:"15:00"},
+  {name:"和泉市立石尾中学校", kind:"中", addr:"大阪府和泉市万町930", lat:34.457519, lng:135.457735, time:"15:00"},
+  {name:"和泉市立北池田中学校", kind:"中", addr:"大阪府和泉市いぶき野3丁目4-1", lat:34.46581, lng:135.455666, time:"15:00"},
+  {name:"和泉市立南池田中学校", kind:"中", addr:"大阪府和泉市梶谷町226", lat:34.4475528, lng:135.4668018, time:"15:00"},
+  {name:"和泉市立光明台中学校", kind:"中", addr:"大阪府和泉市光明台1丁目28-1", lat:34.457152, lng:135.4873456, time:"15:00"},
+  {name:"和泉市立槇尾中学校", kind:"中", addr:"大阪府和泉市仏並町198", lat:34.4266443, lng:135.4880851, time:"15:00"},
+  {name:"和泉市立富秋中学校", kind:"中", addr:"大阪府和泉市冨秋町2丁目2-89", lat:34.5056761, lng:135.4360006, time:"15:00"},
+  {name:"和泉市立信太中学校", kind:"中", addr:"大阪府和泉市鶴山台1丁目1-1", lat:34.506061, lng:135.448305, time:"15:00"},
+  {name:"和泉市立南松尾はつが野学園", kind:"義", addr:"大阪府和泉市はつが野6丁目45-1", lat:34.4353963, lng:135.4651766, time:"15:00"},
+  {name:"大阪府立和泉支援学校", kind:"支", addr:"大阪府和泉市池上町2丁目4-6", lat:34.49677, lng:135.42854, time:"15:00"},
+  {name:"大阪府立泉北高等支援学校", kind:"支", addr:"大阪府堺市南区原山台2丁目6番", lat:34.4826919, lng:135.4892193, time:"15:00"},
 ];
 
 function presetSchools(){
@@ -518,9 +576,7 @@ function parseGeo(text){
   return {ok:false};
 }
 function shortName(name){
-  // 「〇〇市立」「〇〇区立」「〇〇町立」「〇〇村立」「〇〇都立」「〇〇道立」「〇〇府立」「〇〇県立」など、
-  // 自治体名＋「立」の接頭辞を地域を問わず取り除く（表示を短くするための見た目調整）
-  return name.replace(/^.{1,10}?(都|道|府|県|市|区|町|村)立/, '');
+  return name.replace(/^和泉市立/,'').replace(/^大阪府立/,'');
 }
 const MARU = '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳';
 
@@ -1142,9 +1198,9 @@ bindNum('#setGap','gap',5,120);
 
 /* --- 事業所：緯度経度の取得 --- */
 function setFacGeoStatus(msg){ const el = $('#geoStatus'); if(el) el.textContent = msg; }
-const GEO_DEFAULT_NOTE = '「現在地から取得」は事業所にいるときに、「住所から取得」は上の住所をもとに座標を調べます（インターネット接続が必要です）。';
+const GEO_DEFAULT_NOTE = '「現在地から取得」は事業所にいるときに、「住所から取得」は上の住所をもとに、「地図から取得」は地図を動かして目で見ながら座標を調べます（どれもインターネット接続が必要です）。';
 $('#btnGeoHere').addEventListener('click', ()=>{
-  if(!('geolocation' in navigator)){ toast('この端末では現在地を取得できません'); return; }
+  if(!navigator.geolocation){ toast('この端末では現在地を取得できません'); return; }
   setFacGeoStatus('現在地を取得しています…');
   navigator.geolocation.getCurrentPosition(
     pos=>{
@@ -1187,6 +1243,90 @@ $('#btnGeoAddr').addEventListener('click', async ()=>{
   }finally{
     $('#btnGeoAddr').disabled = false;
   }
+});
+
+/* --- 地図から緯度経度を選ぶ（中央固定ピン方式・Leafletを使用時だけ読み込み） --- */
+let leafletReady = null; // Promise
+function loadLeaflet(){
+  if(leafletReady) return leafletReady;
+  leafletReady = new Promise((resolve, reject)=>{
+    if(window.L){ resolve(); return; }
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
+    document.head.appendChild(link);
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+    script.onload = ()=> resolve();
+    script.onerror = ()=> reject(new Error('leaflet load failed'));
+    document.head.appendChild(script);
+  });
+  return leafletReady;
+}
+function tryGetCurrentPosition(timeoutMs){
+  return new Promise(resolve=>{
+    if(!navigator.geolocation){ resolve(null); return; }
+    let done = false;
+    const timer = setTimeout(()=>{ if(!done){ done=true; resolve(null); } }, timeoutMs);
+    navigator.geolocation.getCurrentPosition(
+      pos=>{ if(!done){ done=true; clearTimeout(timer); resolve({lat:pos.coords.latitude, lng:pos.coords.longitude}); } },
+      ()=>{ if(!done){ done=true; clearTimeout(timer); resolve(null); } },
+      { timeout: timeoutMs }
+    );
+  });
+}
+let mapPickInstance = null;
+function updateMapPickCoord(){
+  const c = mapPickInstance.getCenter();
+  $('#mapPickCoord').textContent = c.lat.toFixed(6)+', '+c.lng.toFixed(6);
+}
+$('#btnGeoMap').addEventListener('click', async ()=>{
+  $('#btnGeoMap').disabled = true;
+  try{
+    await loadLeaflet();
+  }catch(e){
+    toast('地図を読み込めませんでした。通信環境をご確認ください');
+    $('#btnGeoMap').disabled = false;
+    return;
+  }
+  $('#btnGeoMap').disabled = false;
+  $('#dlgMap').showModal();
+
+  let start, zoom;
+  if(hasGeo(state.facility)){
+    start = {lat:state.facility.lat, lng:state.facility.lng}; zoom = 17;
+  }else{
+    const pos = await tryGetCurrentPosition(4000);
+    if(pos){ start = pos; zoom = 16; }
+    else{ start = {lat:34.6937, lng:135.5023}; zoom = 12; } // 見つからない時は大阪駅付近を無難な初期値に
+  }
+
+  setTimeout(()=>{
+    if(!mapPickInstance){
+      mapPickInstance = L.map('mapPick', { zoomControl:true, attributionControl:true }).setView([start.lat, start.lng], zoom);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      }).addTo(mapPickInstance);
+      mapPickInstance.on('move', updateMapPickCoord);
+    }else{
+      mapPickInstance.invalidateSize();
+      mapPickInstance.setView([start.lat, start.lng], zoom);
+    }
+    updateMapPickCoord();
+  }, 60);
+});
+$('#btnMapCancel').addEventListener('click', ()=> $('#dlgMap').close());
+$('#btnMapUse').addEventListener('click', ()=>{
+  if(!mapPickInstance) return;
+  const c = mapPickInstance.getCenter();
+  const lat = Math.round(c.lat*1e7)/1e7;
+  const lng = Math.round(c.lng*1e7)/1e7;
+  state.facility.lat = lat; state.facility.lng = lng;
+  $('#facGeo').value = lat+', '+lng;
+  save(); renderRoute();
+  $('#dlgMap').close();
+  toast('地図から座標を設定しました');
 });
 
 /* --- 学校データを作成（地域から検索） --- */
