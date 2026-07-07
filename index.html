@@ -1185,14 +1185,20 @@ function updateGoogleMapsLink(){
   if(hasGeo(state.facility)){
     url = 'https://www.google.com/maps/search/?api=1&query='+state.facility.lat+','+state.facility.lng;
   }else{
+    const name = ($('#facName').value||'').trim();
     const addr = ($('#facAddr').value||'').trim();
-    url = addr
-      ? 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(addr)
+    let q = '';
+    if(name && addr) q = name+' '+addr;      // 名前＋住所（実際の施設ピンが見つかりやすい）
+    else if(addr) q = addr;
+    else if(name) q = name;
+    url = q
+      ? 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(q)
       : 'https://www.google.com/maps/';
   }
   a.href = url;
 }
-$('#facName').addEventListener('change', e=>{ state.facility.name = e.target.value.trim(); save(); renderRoute(); });
+$('#facName').addEventListener('change', e=>{ state.facility.name = e.target.value.trim(); save(); renderRoute(); updateGoogleMapsLink(); });
+$('#facName').addEventListener('input', updateGoogleMapsLink);
 $('#facAddr').addEventListener('change', e=>{ state.facility.addr = e.target.value.trim(); save(); renderRoute(); updateGoogleMapsLink(); });
 $('#facAddr').addEventListener('input', updateGoogleMapsLink);
 $('#facGeo').addEventListener('change', e=>{
