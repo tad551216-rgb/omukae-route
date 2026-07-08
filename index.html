@@ -679,6 +679,7 @@ function renderPicks(){
         const p = pickOf(id);
         p.on = !p.on;
         if(p.on && !p.time){ const s=schoolById(id); p.time = (s&&s.time)||'15:00'; }
+        if(!p.on) p.confirmed = false; // 選択解除したら確定状態もリセット
         save(); renderPicks();
       });
       el.querySelector('.tm')?.addEventListener('change', e=>{ pickOf(id).time = e.target.value; save(); });
@@ -770,7 +771,7 @@ function applyBulkTime(t){
   toast(n+'校を '+t+' にして確定しました'+(skipped?'（確定済み'+skipped+'校は対象外）':''));
 }
 $('#btnClearPicks').addEventListener('click', ()=>{
-  Object.values(state.picks).forEach(p=>p.on=false);
+  Object.values(state.picks).forEach(p=>{ p.on=false; p.confirmed=false; });
   state.plan = {assign:[]};
   save(); renderPicks(); renderRoute();
 });
