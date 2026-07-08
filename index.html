@@ -361,11 +361,26 @@ textarea{min-height:110px;font-size:.8rem;}
   </div>
 </section>
 
+<!-- ⑤お送りサイン -->
+<section class="tab" id="tab-sign">
+  <h2>お送りサイン <span id="signDateLabel" style="font-weight:400;color:var(--muted);font-size:.8rem;"></span></h2>
+  <p class="note">支援きろく帖の「マスター」（ニックネームと学校のみ・実名なし）を読み込むと、お迎え対象の学校の児童が並びます。お送りの際、保護者にこの画面でサインをもらってください。</p>
+  <div class="row" style="margin:8px 0;">
+    <button class="small ghost" id="btnSignImport">マスターを読み込む</button>
+    <div style="text-align:right;flex:1;font-size:.85rem;color:var(--indigo);" id="signCount"></div>
+  </div>
+  <div id="signList"></div>
+  <button class="wide verm" id="btnSignExport" style="margin-top:12px;">集約ファイルを書き出す（管理者へ）</button>
+  <button class="wide ghost" id="btnSignCleanup" style="margin-top:8px;">昨日までのサインを削除</button>
+  <p class="note">サインはこの端末に保存されます。管理者へ書き出したあとは古いサインを削除して、端末の容量を軽く保ってください（14日より前の分は自動で削除されます）。集約ファイルはAirDrop・クラウド等で渡し、<b>LINEのトークには載せない</b>でください。</p>
+</section>
+
 </main>
 
 <nav id="tabbar">
   <button data-tab="today" class="on"><span class="ic">🚐</span>今日</button>
   <button data-tab="route"><span class="ic">🗺</span>ルート</button>
+  <button data-tab="sign"><span class="ic">✍️</span>サイン</button>
   <button data-tab="school"><span class="ic">🏫</span>学校</button>
   <button data-tab="setting"><span class="ic">⚙︎</span>設定</button>
 </nav>
@@ -414,11 +429,23 @@ textarea{min-height:110px;font-size:.8rem;}
 <!-- 読み込みダイアログ -->
 <dialog id="dlgImport">
   <h2 style="margin-top:0;">データの読み込み</h2>
-  <p class="note">「書き出してコピー」で作った文を貼り付けると、今のデータをまるごと置き換えます。学校の住所・座標だけのデータを貼り付けたときは、車両や設定はそのままに、学校の情報だけを更新・追加します。</p>
+  <p class="note">「書き出してコピー」で作った文を貼り付けると、今のデータをまるごと置き換えます。学校の住所・座標だけのデータや、支援きろく帖の<b>マスター（ニックネームと学校）</b>を貼り付けたときは、車両や設定はそのままに、学校・児童の情報だけを更新・追加します。</p>
   <textarea id="importText" placeholder="ここに貼り付け"></textarea>
   <div class="row" style="margin-top:12px;">
     <button class="ghost" id="btnImportCancel">やめる</button>
     <button class="verm" id="btnImportDo">読み込む</button>
+  </div>
+</dialog>
+
+<!-- サイン取得ダイアログ -->
+<dialog id="dlgOmkSign">
+  <h2 style="margin-top:0;" id="dlgOmkSignTitle">保護者サイン</h2>
+  <p class="note">本日のサービス提供と送迎をご確認のうえ、枠内にサインをお願いします。</p>
+  <canvas id="omkSignCanvas" style="width:100%;height:180px;background:#fff;border:1.5px solid var(--indigo);border-radius:10px;touch-action:none;display:block;"></canvas>
+  <div class="row" style="margin-top:12px;">
+    <button class="ghost small" id="btnOmkSignClear">書き直す</button>
+    <button class="ghost small" id="btnOmkSignCancel">やめる</button>
+    <button class="verm" id="btnOmkSignSave" style="flex:1;">この内容で確認</button>
   </div>
 </dialog>
 
@@ -517,6 +544,14 @@ function load(){
   if(!s.picks) s.picks = {};
   Object.values(s.picks).forEach(p=>{ if(!('num' in p)) p.num = 1; });
   if(!Array.isArray(s.quickTimes) || s.quickTimes.length!==2) s.quickTimes = ['13:15','13:45'];
+  if(!Array.isArray(s.kids)) s.kids = [];            // {nick, school}
+  if(!s.signs) s.signs = {};                          // 'YYYY-MM-DD_nick' -> {sign, signAt}
+  // 14日より前のサインは自動削除（localStorage容量の保護）
+  try{
+    const lim = new Date(); lim.setDate(lim.getDate()-14);
+    const limStr = lim.getFullYear()+'-'+String(lim.getMonth()+1).padStart(2,'0')+'-'+String(lim.getDate()).padStart(2,'0');
+    Object.keys(s.signs).forEach(k=>{ if(k.slice(0,10) < limStr) delete s.signs[k]; });
+  }catch(e){}
   return s;
 }
 function save(){
@@ -605,6 +640,7 @@ document.querySelectorAll('#tabbar button').forEach(b=>{
 function showTab(name){
   document.querySelectorAll('#tabbar button').forEach(b=>b.classList.toggle('on', b.dataset.tab===name));
   document.querySelectorAll('section.tab').forEach(s=>s.classList.toggle('active', s.id==='tab-'+name));
+  if(name==='sign') renderSign();
   window.scrollTo(0,0);
 }
 
@@ -1702,6 +1738,16 @@ function simplifyReverseAddr(rjson, knownName){
 
 function applyImportedData(s){
   if(!s || !Array.isArray(s.schools)) return {ok:false};
+  /* 支援きろく帖マスター：児童（ニックネーム＋学校）も取り込む */
+  let kidsAdded=0, kidsUpdated=0;
+  if(s.app==='shien-kiroku-master' && Array.isArray(s.children)){
+    s.children.forEach(inc=>{
+      if(!inc || !inc.nick) return;
+      const hit = state.kids.find(k=>k.nick===inc.nick);
+      if(hit){ if(inc.school) hit.school = inc.school; kidsUpdated++; }
+      else{ state.kids.push({nick:inc.nick, school:inc.school||''}); kidsAdded++; }
+    });
+  }
   const isFullBackup = ('vehicles' in s) || ('facility' in s) || ('settings' in s) || ('picks' in s);
   if(isFullBackup){
     // 端末間の引き継ぎ用フルバックアップ：まるごと置き換え
@@ -1735,12 +1781,14 @@ function applyImportedData(s){
     });
     save();
     renderSchools(); renderPicks(); renderRoute();
-    return {ok:true, mode:'merge', updated, added};
+    if(kidsAdded||kidsUpdated) renderSign();
+    return {ok:true, mode:'merge', updated, added, kidsAdded, kidsUpdated};
   }
 }
 function importResultToast(r){
   if(!r.ok){ toast('読み込めませんでした'); return; }
   if(r.mode==='full') toast('読み込みました');
+  else if(r.kidsAdded||r.kidsUpdated) toast('マスターを読み込みました（児童 追加'+r.kidsAdded+'名・更新'+r.kidsUpdated+'名／学校 追加'+r.added+'件）');
   else toast('学校データを更新しました（更新'+r.updated+'件・追加'+r.added+'件）');
 }
 function todayStamp(){
@@ -1799,8 +1847,148 @@ $('#fileImportJson').addEventListener('change', (e)=>{
 
 /* ============ 初期化 ============ */
 function renderAll(){
-  renderBulkbar(); renderFilter(); renderPicks(); renderRoute(); renderSchools(); renderVehicles(); renderSettings();
+  renderBulkbar(); renderFilter(); renderPicks(); renderRoute(); renderSchools(); renderVehicles(); renderSettings(); renderSign();
 }
+
+/* ============ ⑤お送りサイン ============ */
+function todayISO(){
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function signKey(nick){ return todayISO()+'_'+nick; }
+function renderSign(){
+  const box = $('#signList');
+  if(!box) return;
+  $('#signDateLabel').textContent = todayLabel();
+  if(!state.kids.length){
+    box.innerHTML = '<div class="card" style="text-align:center;color:var(--muted);font-size:.85rem;">児童がまだ読み込まれていません。<br>支援きろく帖の「マスターを書き出す」で作ったテキストを<br>「マスターを読み込む」から貼り付けてください。</div>';
+    $('#signCount').textContent = '';
+    return;
+  }
+  /* 学校名 -> 車両名（本日の配車から） */
+  const vname = {}; state.vehicles.forEach(v=>vname[v.id]=v.name);
+  const schoolVehicle = {};
+  ((state.plan&&state.plan.assign)||[]).forEach(a=>(a.stops||[]).forEach(sid=>{
+    const sc = schoolById(sid); if(sc) schoolVehicle[sc.name] = vname[a.vid]||'';
+  }));
+  /* 本日選択中の学校名 */
+  const onSchools = new Set(state.schools.filter(s=>pickOf(s.id).on).map(s=>s.name));
+  const todayKids = state.kids.filter(k=>onSchools.has(k.school));
+  const otherKids = state.kids.filter(k=>!onSchools.has(k.school));
+  const list = todayKids.length ? todayKids : state.kids;
+  /* 車両ごとにグループ化 */
+  const groups = {};
+  list.forEach(k=>{
+    const g = schoolVehicle[k.school] || (todayKids.length ? 'お迎え対象' : 'すべての児童');
+    (groups[g] = groups[g] || []).push(k);
+  });
+  let html = '';
+  Object.keys(groups).sort().forEach(g=>{
+    html += '<div style="font-size:.8rem;font-weight:700;color:var(--indigo);margin:12px 2px 6px;">🚐 '+esc(g)+'（'+groups[g].length+'名）</div>';
+    groups[g].sort((a,b)=>a.nick.localeCompare(b.nick,'ja')).forEach(k=>{
+      const sg = state.signs[signKey(k.nick)];
+      html += '<div class="card" style="display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:8px;">'
+        +'<div style="flex:1;"><div style="font-size:.95rem;font-weight:700;">'+esc(k.nick)+'</div>'
+        +'<div style="font-size:.72rem;color:var(--muted);">'+esc(shortName(k.school||''))+'</div></div>'
+        +(sg
+          ? '<img src="'+sg.sign+'" style="height:38px;background:#fff;border:1px solid #ddd;border-radius:6px;" alt="サイン">'
+            +'<div style="font-size:.72rem;color:#3a7d44;font-weight:700;">✔ '+esc(sg.signAt)+'</div>'
+            +'<button class="small ghost" data-nick="'+esc(k.nick)+'">書直</button>'
+          : '<button class="small verm" data-nick="'+esc(k.nick)+'" style="padding:8px 16px;">✍ サイン</button>')
+        +'</div>';
+    });
+  });
+  if(todayKids.length && otherKids.length){
+    html += '<p class="note" style="margin-top:10px;">※ 本日選択していない学校の児童 '+otherKids.length+'名は表示していません。</p>';
+  }
+  box.innerHTML = html;
+  box.querySelectorAll('button[data-nick]').forEach(b=>{
+    b.addEventListener('click', ()=>openOmkSign(b.dataset.nick));
+  });
+  const signed = list.filter(k=>state.signs[signKey(k.nick)]).length;
+  $('#signCount').textContent = 'サイン '+signed+' / '+list.length;
+}
+$('#btnSignImport').addEventListener('click', ()=>{ $('#importText').value=''; $('#dlgImport').showModal(); });
+
+/* サイン描画 */
+let omkSignNick = null, omkDrawn = false, omkDrawing = false;
+const omkCv = $('#omkSignCanvas');
+function openOmkSign(nick){
+  omkSignNick = nick; omkDrawn = false;
+  $('#dlgOmkSignTitle').textContent = nick + 'さん — 保護者サイン';
+  $('#dlgOmkSign').showModal();
+  setTimeout(omkInitCanvas, 60);
+}
+function omkInitCanvas(){
+  const dpr = window.devicePixelRatio||1;
+  const w = omkCv.clientWidth, h = omkCv.clientHeight;
+  omkCv.width = w*dpr; omkCv.height = h*dpr;
+  const ctx = omkCv.getContext('2d');
+  ctx.scale(dpr,dpr);
+  ctx.fillStyle = '#fff'; ctx.fillRect(0,0,w,h);
+  ctx.strokeStyle = '#1e3a58'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  omkCv._ctx = ctx;
+}
+function omkPos(e){
+  const rc = omkCv.getBoundingClientRect();
+  const p = e.touches ? e.touches[0] : e;
+  return {x:p.clientX-rc.left, y:p.clientY-rc.top};
+}
+omkCv.addEventListener('touchstart', e=>{ e.preventDefault(); omkDrawing=true; const p=omkPos(e); omkCv._ctx.beginPath(); omkCv._ctx.moveTo(p.x,p.y); }, {passive:false});
+omkCv.addEventListener('touchmove', e=>{ if(!omkDrawing) return; e.preventDefault(); const p=omkPos(e); omkCv._ctx.lineTo(p.x,p.y); omkCv._ctx.stroke(); omkDrawn=true; }, {passive:false});
+omkCv.addEventListener('touchend', ()=>{ omkDrawing=false; });
+omkCv.addEventListener('mousedown', e=>{ omkDrawing=true; const p=omkPos(e); omkCv._ctx.beginPath(); omkCv._ctx.moveTo(p.x,p.y); });
+omkCv.addEventListener('mousemove', e=>{ if(!omkDrawing) return; const p=omkPos(e); omkCv._ctx.lineTo(p.x,p.y); omkCv._ctx.stroke(); omkDrawn=true; });
+window.addEventListener('mouseup', ()=>{ omkDrawing=false; });
+$('#btnOmkSignClear').addEventListener('click', omkInitCanvas);
+$('#btnOmkSignCancel').addEventListener('click', ()=> $('#dlgOmkSign').close());
+$('#btnOmkSignSave').addEventListener('click', ()=>{
+  if(!omkDrawn){ toast('サインが書かれていません'); return; }
+  const out = document.createElement('canvas');
+  out.width = 320; out.height = Math.round(320*omkCv.clientHeight/omkCv.clientWidth);
+  out.getContext('2d').drawImage(omkCv, 0, 0, out.width, out.height);
+  const n = new Date();
+  state.signs[signKey(omkSignNick)] = {
+    sign: out.toDataURL('image/png'),
+    signAt: String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')
+  };
+  save();
+  $('#dlgOmkSign').close();
+  renderSign();
+  toast('サインを保存しました');
+});
+
+/* 集約ファイル書き出し（shien-kiroku-daily・サインのみ） */
+$('#btnSignExport').addEventListener('click', ()=>{
+  const date = todayISO();
+  const recs = [];
+  Object.keys(state.signs).forEach(k=>{
+    if(k.slice(0,10)!==date) return;
+    const sg = state.signs[k];
+    recs.push({nick:k.slice(11), sign:sg.sign, signAt:sg.signAt});
+  });
+  if(!recs.length){ toast('今日のサインがまだありません'); return; }
+  const payload = {app:'shien-kiroku-daily', ver:1, date, exported:new Date().toISOString(), source:'omukae-route', recs};
+  try{
+    const blob = new Blob([JSON.stringify(payload)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'sign-daily-'+date+'.json';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 3000);
+    toast(recs.length+'名分のサインを書き出しました');
+  }catch(e){ toast('書き出せませんでした'); }
+});
+$('#btnSignCleanup').addEventListener('click', ()=>{
+  const date = todayISO();
+  const old = Object.keys(state.signs).filter(k=>k.slice(0,10)<date);
+  if(!old.length){ toast('削除できる古いサインはありません'); return; }
+  if(!confirm('昨日までのサイン '+old.length+'件を削除します。\n管理者への書き出しは済んでいますか？')) return;
+  old.forEach(k=>delete state.signs[k]);
+  save(); renderSign();
+  toast(old.length+'件を削除しました');
+});
+
 renderAll();
 
 if('serviceWorker' in navigator){
