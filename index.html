@@ -762,12 +762,12 @@ function applyBulkTime(t){
     const p=pickOf(s.id);
     if(!p.on) return;
     if(p.confirmed){ skipped++; return; }
-    p.time=t; n++;
+    p.time=t; p.confirmed=true; n++;
   });
   if(n===0 && skipped===0){ toast('先に学校を選んでください'); return; }
   if(n===0 && skipped>0){ toast('選んだ学校はすべて確定済みのため、変更しませんでした'); return; }
   save(); renderPicks();
-  toast(n+'校を '+t+' にしました'+(skipped?'（確定済み'+skipped+'校は対象外）':''));
+  toast(n+'校を '+t+' にして確定しました'+(skipped?'（確定済み'+skipped+'校は対象外）':''));
 }
 $('#btnClearPicks').addEventListener('click', ()=>{
   Object.values(state.picks).forEach(p=>p.on=false);
