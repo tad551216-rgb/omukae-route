@@ -982,6 +982,10 @@ function renderRoute(){
     });
     html += '<div class="vfoot">遅延は目安です。乗車'+state.settings.board+'分／'
       +(geoMissing?'座標なし区間 '+state.settings.leg+'分':'平均時速'+state.settings.speed+'km')+'で計算。</div>';
+    html += '<div class="row" style="margin-top:6px;">'
+      +'<button type="button" class="small ghost btnVehCopy" data-vid="'+a.vid+'">この車の連絡文をコピー</button>'
+      +(navigator.share?'<button type="button" class="small ghost btnVehShare" data-vid="'+a.vid+'">共有（LINEなど）</button>':'')
+      +'</div>';
     html += '</div>';
   });
 
@@ -1005,6 +1009,16 @@ function renderRoute(){
     sel.addEventListener('change', ()=>{
       const el = sel.closest('.stop');
       moveToVehicle(el.dataset.vid, el.dataset.id, sel.value);
+    });
+  });
+  box.querySelectorAll('.btnVehCopy').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      copyText(vehiclePlanText(b.dataset.vid)).then(ok=> toast(ok!==false?(vehNames[b.dataset.vid]?vehNames[b.dataset.vid].name+'の連絡文をコピーしました':'コピーしました'):'コピーできませんでした'));
+    });
+  });
+  box.querySelectorAll('.btnVehShare').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      navigator.share({text: vehiclePlanText(b.dataset.vid)}).catch(()=>{});
     });
   });
   const cp = $('#btnCopyPlan');
@@ -1074,6 +1088,33 @@ function buildMapUrls(ids){
   }
   return urls;
 }
+function vehicleLines(a, vehNames){
+  const v = vehNames[a.vid] || {name:'車', cap:Infinity};
+  const sim = simulateVehicle(a.stops);
+  const fn = state.facility.name || '事業所';
+  const lines = [];
+  lines.push('■ '+v.name+(v.cap!==Infinity?'（定員'+v.cap+'）':'')+' 乗車最大'+sim.maxLoad+'名');
+  let prevTrip = 0;
+  sim.stops.forEach((st,i)=>{
+    if(st.trip!==prevTrip){
+      if(prevTrip>0){
+        const trPrev = sim.trips[prevTrip-1];
+        lines.push('戻 '+(trPrev.return!=null?toHM(trPrev.return):'')+' '+fn+'（降車）');
+      }
+      const trNew = sim.trips[st.trip-1];
+      lines.push('発 '+(trNew.depart!=null?toHM(trNew.depart):'')+' '+fn+(sim.trips.length>1?'（'+st.trip+'便目）':''));
+      prevTrip = st.trip;
+    }
+    const s = schoolById(st.id), p = state.picks[st.id];
+    lines.push(MARU.charAt(i<20?i:19)+' '+(p.time||'')+' '+shortName(s.name)+' '+st.num+'名'
+      +(st.delay>=0.5?'（＋'+Math.round(st.delay)+'分遅れ見込）':'')
+      +(p.memo?'／'+p.memo:''));
+  });
+  lines.push('着 '+(sim.returnAt!=null?toHM(sim.returnAt):'')+' '+fn);
+  const urls = buildMapUrls(a.stops);
+  urls.forEach(u=>lines.push(u));
+  return lines;
+}
 function planText(){
   const plan = planEntries();
   const vehNames = {};
@@ -1081,31 +1122,23 @@ function planText(){
   const lines = [];
   lines.push('【お迎えルート】'+todayLabel());
   plan.forEach(a=>{
-    const v = vehNames[a.vid] || {name:'車', cap:Infinity};
-    const sim = simulateVehicle(a.stops);
-    const fn = state.facility.name || '事業所';
-    lines.push('■ '+v.name+(v.cap!==Infinity?'（定員'+v.cap+'）':'')+' 乗車最大'+sim.maxLoad+'名');
-    let prevTrip = 0;
-    sim.stops.forEach((st,i)=>{
-      if(st.trip!==prevTrip){
-        if(prevTrip>0){
-          const trPrev = sim.trips[prevTrip-1];
-          lines.push('戻 '+(trPrev.return!=null?toHM(trPrev.return):'')+' '+fn+'（降車）');
-        }
-        const trNew = sim.trips[st.trip-1];
-        lines.push('発 '+(trNew.depart!=null?toHM(trNew.depart):'')+' '+fn+(sim.trips.length>1?'（'+st.trip+'便目）':''));
-        prevTrip = st.trip;
-      }
-      const s = schoolById(st.id), p = state.picks[st.id];
-      lines.push(MARU.charAt(i<20?i:19)+' '+(p.time||'')+' '+shortName(s.name)+' '+st.num+'名'
-        +(st.delay>=0.5?'（＋'+Math.round(st.delay)+'分遅れ見込）':'')
-        +(p.memo?'／'+p.memo:''));
-    });
-    lines.push('着 '+(sim.returnAt!=null?toHM(sim.returnAt):'')+' '+fn);
-    const urls = buildMapUrls(a.stops);
-    urls.forEach(u=>lines.push(u));
+    lines.push(...vehicleLines(a, vehNames));
     lines.push('');
   });
+  lines.push('※到着・遅延は目安です');
+  return lines.join('\n');
+}
+function vehiclePlanText(vid){
+  const plan = planEntries();
+  const a = plan.find(x=>x.vid===vid);
+  if(!a) return '';
+  const vehNames = {};
+  activeVehicles().forEach(v=>vehNames[v.id]=v);
+  const v = vehNames[vid] || {name:'車'};
+  const lines = [];
+  lines.push('【'+v.name+' 便　お迎えルート】'+todayLabel());
+  lines.push(...vehicleLines(a, vehNames));
+  lines.push('');
   lines.push('※到着・遅延は目安です');
   return lines.join('\n');
 }
