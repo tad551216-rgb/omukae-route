@@ -109,6 +109,9 @@ nav#tabbar button.on{color:var(--verm);font-weight:700;}
 .pick .nm{flex:1;min-width:0;}
 .pick .nm .n1{font-size:.9rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .pick .nm input.memo{width:100%;border:none;border-bottom:1px dashed var(--line);border-radius:0;padding:2px 2px;font-size:.78rem;background:transparent;margin-top:2px;}
+.nickchips{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;}
+.nickchips button{font-size:.72rem;padding:3px 10px;border-radius:99px;border:1px solid var(--line);background:#fff;color:var(--ink);line-height:1.4;}
+.nickchips button.in{background:var(--indigo);border-color:var(--indigo);color:#fff;font-weight:700;}
 .pick .bottomrow{display:flex;align-items:center;gap:8px;padding-left:47px;flex-wrap:wrap;}
 .pick .bottomrow input.tm{flex:0 0 92px;text-align:center;font-variant-numeric:tabular-nums;padding:8px 4px;}
 .pick .confirmChk{
@@ -273,6 +276,8 @@ textarea{min-height:110px;font-size:.8rem;}
   <h2>学校のリスト</h2>
   <p class="note">和泉市立の小・中学校、義務教育学校、和泉支援学校をあらかじめ登録しています。使わない学校は削除して、実際にお迎えのある学校だけに絞ると使いやすくなります。緯度・経度を登録すると、移動時間と遅延の見込みが正確になります。</p>
   <button class="small" id="btnAddSchool">＋ 学校を追加</button>
+  <button class="small ghost" id="btnExportSchools">📤 学校データだけを書き出す</button>
+  <p class="note" style="margin-top:6px;">学校名・住所・座標・下校時刻だけをコピーします。<b>支援きろく帖の学校リスト更新</b>や、別の端末のおむかえルート帖への配布（車両・設定を壊さず学校だけ統合）に使います。</p>
   <div id="schoolList" style="margin-top:10px;"></div>
 </section>
 
@@ -700,6 +705,13 @@ function renderPicks(){
           +'<span class="unit">名</span>'
           +'<label class="confirmChk'+(p.confirmed?' on':'')+'"><input type="checkbox" class="pconfirm"'+(p.confirmed?' checked':'')+'>確定</label>'
           +'</div>';
+        const nicks = state.kids.filter(k=>k.school===s.name).map(k=>k.nick);
+        if(nicks.length){
+          const parts = (p.memo||'').split(/[・、,\s]+/).filter(Boolean);
+          html += '<div class="nickchips">'+nicks.map(n=>
+            '<button type="button" data-nk="'+esc(n)+'"'+(parts.includes(n)?' class="in"':'')+'>'+esc(n)+'</button>'
+          ).join('')+'</div>';
+        }
       }
       html += '</div>';
       return html;
@@ -728,6 +740,22 @@ function renderPicks(){
         const p = pickOf(id); p.num = Math.min(30, (p.num||0) + 1); numInput.value = p.num; save(); updatePickCount();
       });
       el.querySelector('.memo')?.addEventListener('change', e=>{ pickOf(id).memo = e.target.value; save(); });
+      el.querySelectorAll('.nickchips button').forEach(b=>{
+        b.addEventListener('click', ()=>{
+          const p = pickOf(id);
+          const parts = (p.memo||'').split(/[・、,\s]+/).filter(Boolean);
+          const n = b.dataset.nk;
+          const i = parts.indexOf(n);
+          if(i>=0) parts.splice(i,1); else parts.push(n);
+          p.memo = parts.join('・');
+          /* チップで入れた児童の数に人数を合わせる */
+          const sc = schoolById(id);
+          const schoolNicks = state.kids.filter(k=>sc&&k.school===sc.name).map(k=>k.nick);
+          const cnt = parts.filter(x=>schoolNicks.includes(x)).length;
+          if(cnt>0) p.num = cnt;
+          save(); renderPicks(); updatePickCount();
+        });
+      });
       el.querySelector('.pconfirm')?.addEventListener('change', e=>{
         pickOf(id).confirmed = e.target.checked;
         save();
@@ -1799,6 +1827,12 @@ function todayStamp(){
 $('#btnExport').addEventListener('click', ()=>{
   const text = 'おむかえルート帖データ\n' + JSON.stringify(state);
   copyText(text).then(ok=> toast(ok!==false?'コピーしました。メモ等に貼って保存を':'コピーできませんでした'));
+});
+$('#btnExportSchools').addEventListener('click', ()=>{
+  if(!state.schools.length){ toast('学校が登録されていません'); return; }
+  const schools = state.schools.map(s=>({name:s.name, kind:s.kind, addr:s.addr||'', lat:s.lat, lng:s.lng, time:s.time||''}));
+  const text = 'おむかえルート帖 学校データ（'+schools.length+'校）\n' + JSON.stringify({schools});
+  copyText(text).then(ok=> toast(ok!==false?schools.length+'校をコピーしました。支援きろく帖や別端末に貼り付けできます':'コピーできませんでした'));
 });
 $('#btnImport').addEventListener('click', ()=>{ $('#importText').value=''; $('#dlgImport').showModal(); });
 $('#btnImportCancel').addEventListener('click', ()=> $('#dlgImport').close());
