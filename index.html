@@ -1224,10 +1224,19 @@ function renderSchools(){
     +'<span class="kindtag'+(s.kind==='支'?' k支':'')+'">'+KIND_LABEL[s.kind]+'</span>'
     +'<div class="nm">'+esc(s.name)
     +'<div class="ad">'+esc(s.addr || '')+(hasGeo(s)?' ｜ 座標あり':' ｜ 座標なし')+' ｜ '+esc(s.time||'')+'</div></div>'
+    +'<button class="small ghost shrink" data-act="map" title="Googleマップで確認">🗺</button>'
     +'<button class="small ghost shrink" data-act="edit">編集</button>'
     +'</div>').join('');
   box.querySelectorAll('.sch [data-act="edit"]').forEach(b=>{
     b.addEventListener('click', ()=> openSchoolDialog(b.closest('.sch').dataset.id));
+  });
+  box.querySelectorAll('.sch [data-act="map"]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const s = schoolById(b.closest('.sch').dataset.id);
+      if(!s) return;
+      const q = hasGeo(s) ? (s.lat+','+s.lng) : (s.name+' '+(s.addr||''));
+      window.open('https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(q), '_blank');
+    });
   });
 }
 let editingId = null;
