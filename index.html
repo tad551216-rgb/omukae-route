@@ -274,7 +274,7 @@ textarea{min-height:110px;font-size:.8rem;}
 <!-- ③学校マスタ -->
 <section class="tab" id="tab-school">
   <h2>学校のリスト</h2>
-  <p class="note">和泉市立の小・中学校、義務教育学校、和泉支援学校をあらかじめ登録しています。使わない学校は削除して、実際にお迎えのある学校だけに絞ると使いやすくなります。緯度・経度を登録すると、移動時間と遅延の見込みが正確になります。</p>
+  <p class="note">下の「学校データを作成（地域から検索）」で地域の学校をまとめて登録できます。実際にお迎えのある学校だけに絞ると使いやすくなります。緯度・経度を登録すると、移動時間と遅延の見込みが正確になります。</p>
   <button class="small" id="btnAddSchool">＋ 学校を追加</button>
   <button class="small ghost" id="btnExportSchools">📤 学校データだけを書き出す</button>
   <p class="note" style="margin-top:6px;">学校名・住所・座標・下校時刻だけをコピーします。<b>支援きろく帖の学校リスト更新</b>や、別の端末のおむかえルート帖への配布（車両・設定を壊さず学校だけ統合）に使います。</p>
@@ -481,42 +481,8 @@ textarea{min-height:110px;font-size:.8rem;}
 const STORE_KEY = 'omukae-techo-v1';
 const KIND_LABEL = {'小':'小','中':'中','義':'義','支':'支援','他':'他'};
 
-/* --- 初期学校リスト（和泉市 2026年時点の公開情報） --- */
-const SCHOOL_MASTER = [
-  {name:"和泉市立国府小学校", kind:"小", addr:"大阪府和泉市府中町2丁目5-20", lat:34.483213, lng:135.424916, time:"15:00"},
-  {name:"和泉市立和気小学校", kind:"小", addr:"大阪府和泉市和気町4丁目9-1", lat:34.4755079, lng:135.429172, time:"15:00"},
-  {name:"和泉市立伯太小学校", kind:"小", addr:"大阪府和泉市伯太町2丁目24-22", lat:34.492018, lng:135.437134, time:"15:00"},
-  {name:"和泉市立池上小学校", kind:"小", addr:"大阪府和泉市池上町3丁目14-45", lat:34.502088, lng:135.430332, time:"15:00"},
-  {name:"和泉市立黒鳥小学校", kind:"小", addr:"大阪府和泉市黒鳥町1丁目6-5", lat:34.4897049, lng:135.4373073, time:"15:00"},
-  {name:"和泉市立芦部小学校", kind:"小", addr:"大阪府和泉市芦部町224-3", lat:34.481164, lng:135.441597, time:"15:00"},
-  {name:"和泉市立北池田小学校", kind:"小", addr:"大阪府和泉市池田下町1670", lat:34.4710082, lng:135.4610607, time:"15:00"},
-  {name:"和泉市立いぶき野小学校", kind:"小", addr:"大阪府和泉市いぶき野3丁目3-1", lat:34.4669601, lng:135.4525181, time:"15:00"},
-  {name:"和泉市立南池田小学校", kind:"小", addr:"大阪府和泉市納家町181", lat:34.447593, lng:135.474312, time:"15:00"},
-  {name:"和泉市立緑ケ丘小学校", kind:"小", addr:"大阪府和泉市緑ケ丘3丁目4-1", lat:34.4461813, lng:135.4593025, time:"15:00"},
-  {name:"和泉市立青葉はつが野小学校", kind:"小", addr:"大阪府和泉市はつが野1丁目50-1", lat:34.442946, lng:135.463171, time:"15:00"},
-  {name:"和泉市立北松尾小学校", kind:"小", addr:"大阪府和泉市唐国町3丁目3-19", lat:34.4588568, lng:135.4462161, time:"15:00"},
-  {name:"和泉市立南松尾小学校", kind:"小", addr:"大阪府和泉市久井町430", lat:34.4196547, lng:135.4584114, time:"15:00"},
-  {name:"和泉市立横山小学校", kind:"小", addr:"大阪府和泉市北田中町183", lat:34.4288278, lng:135.4952189, time:"15:00"},
-  {name:"和泉市立南横山小学校", kind:"小", addr:"大阪府和泉市父鬼町1506", lat:34.395734, lng:135.46739, time:"15:00"},
-  {name:"和泉市立幸小学校", kind:"小", addr:"大阪府和泉市幸3丁目3-1", lat:34.499705, lng:135.436265, time:"15:00"},
-  {name:"和泉市立信太小学校", kind:"小", addr:"大阪府和泉市尾野町2丁目8-17", lat:34.5063823, lng:135.4442053, time:"15:00"},
-  {name:"和泉市立鶴山台北小学校", kind:"小", addr:"大阪府和泉市鶴山台1丁目9-1", lat:34.5078981, lng:135.4516445, time:"15:00"},
-  {name:"和泉市立鶴山台南小学校", kind:"小", addr:"大阪府和泉市鶴山台4丁目1-1", lat:34.499453, lng:135.4487468, time:"15:00"},
-  {name:"和泉市立光明台北小学校", kind:"小", addr:"大阪府和泉市光明台1丁目35-1", lat:34.45714, lng:135.4826773, time:"15:00"},
-  {name:"和泉市立光明台南小学校", kind:"小", addr:"大阪府和泉市光明台3丁目8-1", lat:34.4526227, lng:135.4892354, time:"15:00"},
-  {name:"和泉市立和泉中学校", kind:"中", addr:"大阪府和泉市伯太町1丁目2-1", lat:34.4924702, lng:135.429343, time:"15:00"},
-  {name:"和泉市立郷荘中学校", kind:"中", addr:"大阪府和泉市寺門町1丁目14-35", lat:34.474164, lng:135.433212, time:"15:00"},
-  {name:"和泉市立石尾中学校", kind:"中", addr:"大阪府和泉市万町930", lat:34.457519, lng:135.457735, time:"15:00"},
-  {name:"和泉市立北池田中学校", kind:"中", addr:"大阪府和泉市いぶき野3丁目4-1", lat:34.46581, lng:135.455666, time:"15:00"},
-  {name:"和泉市立南池田中学校", kind:"中", addr:"大阪府和泉市梶谷町226", lat:34.4475528, lng:135.4668018, time:"15:00"},
-  {name:"和泉市立光明台中学校", kind:"中", addr:"大阪府和泉市光明台1丁目28-1", lat:34.457152, lng:135.4873456, time:"15:00"},
-  {name:"和泉市立槇尾中学校", kind:"中", addr:"大阪府和泉市仏並町198", lat:34.4266443, lng:135.4880851, time:"15:00"},
-  {name:"和泉市立富秋中学校", kind:"中", addr:"大阪府和泉市冨秋町2丁目2-89", lat:34.5056761, lng:135.4360006, time:"15:00"},
-  {name:"和泉市立信太中学校", kind:"中", addr:"大阪府和泉市鶴山台1丁目1-1", lat:34.506061, lng:135.448305, time:"15:00"},
-  {name:"和泉市立南松尾はつが野学園", kind:"義", addr:"大阪府和泉市はつが野6丁目45-1", lat:34.4353963, lng:135.4651766, time:"15:00"},
-  {name:"大阪府立和泉支援学校", kind:"支", addr:"大阪府和泉市池上町2丁目4-6", lat:34.49677, lng:135.42854, time:"15:00"},
-  {name:"大阪府立泉北高等支援学校", kind:"支", addr:"大阪府堺市南区原山台2丁目6番", lat:34.4826919, lng:135.4892193, time:"15:00"},
-];
+/* --- 初期学校リストは空（「地域から検索」または手入力で登録） --- */
+const SCHOOL_MASTER = [];
 
 function presetSchools(){
   let n = 0;
@@ -1603,13 +1569,7 @@ async function loadCityList(pref){
       + 'area["name"="'+escapeOverpassStr(pref)+'"]["admin_level"="4"]->.pref;\n'
       + 'relation["admin_level"="7"](area.pref);\n'
       + 'out tags;';
-    const res = await fetch('https://overpass-api.de/api/interpreter', {
-      method:'POST',
-      headers:{ 'Content-Type':'application/x-www-form-urlencoded' },
-      body:'data='+encodeURIComponent(q)
-    });
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    const data = await res.json();
+    const data = await overpassFetch(q);
     const names = Array.from(new Set((data.elements||[])
       .map(el => el.tags && el.tags.name).filter(Boolean)))
       .sort((a,b)=>a.localeCompare(b,'ja'));
@@ -1619,7 +1579,7 @@ async function loadCityList(pref){
     status.textContent = names.length+'件の市区町村が見つかりました。見当たらないときは下から直接入力できます。';
   }catch(e){
     sel.innerHTML = '<option value="">一覧を取得できませんでした</option>';
-    status.textContent = '一覧を取得できませんでした。下の「直接入力する」から追加してください。';
+    status.textContent = '一覧を取得できませんでした（地図サーバーが混み合っている可能性があります）。少し時間をおいて再度試すか、下の「直接入力する」から市区町村名を入れてください。';
   }
 }
 $('#genPref').addEventListener('change', ()=> loadCityList($('#genPref').value));
@@ -1645,6 +1605,28 @@ function classifySchoolKind(name){
   return '他';
 }
 function escapeOverpassStr(s){ return String(s).replace(/\\/g,'\\\\').replace(/"/g,'\\"'); }
+/* 複数のOverpassサーバーを順に試す（混雑対策・日本ミラー優先） */
+const OVERPASS_ENDPOINTS = [
+  'https://overpass.osm.jp/api/interpreter',
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter'
+];
+async function overpassFetch(q){
+  let lastErr = null;
+  for(const ep of OVERPASS_ENDPOINTS){
+    try{
+      const res = await fetch(ep, {
+        method:'POST',
+        headers:{ 'Content-Type':'application/x-www-form-urlencoded' },
+        body:'data='+encodeURIComponent(q)
+      });
+      if(res.status===429 || res.status===504){ lastErr = new Error('HTTP '+res.status); continue; }
+      if(!res.ok) { lastErr = new Error('HTTP '+res.status); continue; }
+      return await res.json();
+    }catch(e){ lastErr = e; }
+  }
+  throw lastErr || new Error('接続できませんでした');
+}
 function buildOverpassQueryForCity(pref, city){
   return '[out:json][timeout:40];\n'
     + 'area["name"="'+escapeOverpassStr(pref)+'"]["admin_level"="4"]->.pref;\n'
@@ -1678,13 +1660,7 @@ $('#btnGenSchools').addEventListener('click', async ()=>{
       const city = genCities[ci];
       status.textContent = '検索中…（'+city+'　'+(ci+1)+'／'+genCities.length+'）';
       const q = buildOverpassQueryForCity(pref, city);
-      const res = await fetch('https://overpass-api.de/api/interpreter', {
-        method:'POST',
-        headers:{ 'Content-Type':'application/x-www-form-urlencoded' },
-        body:'data='+encodeURIComponent(q)
-      });
-      if(!res.ok) throw new Error('HTTP '+res.status);
-      const data = await res.json();
+      const data = await overpassFetch(q);
       const elements = (data && data.elements) || [];
       elements.forEach(el=>{
         const tags = el.tags || {};
