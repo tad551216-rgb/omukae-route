@@ -367,7 +367,7 @@ textarea{min-height:110px;font-size:.8rem;}
 
   <h2>このアプリについて</h2>
   <div class="card" style="font-size:.82rem;color:var(--muted);">
-    <p>データはすべてこの端末の中（ブラウザ）だけに保存され、外部には送信されません。到着・遅延は直線距離などからの目安で、実際の道路事情により前後します。ルート案内はGoogleマップに引き継いで表示します。<br>つくる手帖　<span style="color:#aaa;">v30</span></p>
+    <p>データはすべてこの端末の中（ブラウザ）だけに保存され、外部には送信されません。到着・遅延は直線距離などからの目安で、実際の道路事情により前後します。ルート案内はGoogleマップに引き継いで表示します。<br>つくる手帖　<span style="color:#aaa;">v31</span></p>
   </div>
 </section>
 
@@ -1201,7 +1201,11 @@ function renderSchools(){
       const s = schoolById(b.closest('.sch').dataset.id);
       if(!s) return;
       const q = hasGeo(s) ? (s.lat+','+s.lng) : (s.name+' '+(s.addr||''));
-      window.open('https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(q), '_blank');
+      /* iOSのホーム画面アプリではwindow.openが画面を空白にするため、アンカー方式で開く */
+      const a = document.createElement('a');
+      a.href = 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(q);
+      a.target = '_blank'; a.rel = 'noopener';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
     });
   });
 }
