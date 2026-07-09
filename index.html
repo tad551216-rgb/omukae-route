@@ -1649,7 +1649,13 @@ $('#btnGenSchools').addEventListener('click', async ()=>{
   const pref = $('#genPref').value;
   const status = $('#genStatus');
   if(!pref){ toast('都道府県を選んでください'); return; }
-  if(genCities.length===0){ toast('市区町村を1つ以上追加してください'); return; }
+  if(genCities.length===0){
+    /* 「＋ 追加」を押し忘れていても、選択中・入力中の市区町村があれば自動で追加して進む */
+    addCityName($('#genCitySelect').value);
+    addCityName($('#genCityInputManual').value);
+    $('#genCityInputManual').value='';
+  }
+  if(genCities.length===0){ toast('市区町村を選ぶか、名前を入力してください'); return; }
   const wantDetail = $('#genDetailAddr').checked;
   $('#btnGenSchools').disabled = true;
   const candidates = [];
