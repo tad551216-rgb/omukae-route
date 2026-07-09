@@ -279,6 +279,11 @@ textarea{min-height:110px;font-size:.8rem;}
   <button class="small ghost" id="btnExportSchools">📤 学校データだけを書き出す</button>
   <p class="note" style="margin-top:6px;">学校名・住所・座標・下校時刻だけをコピーします。<b>支援きろく帖の学校リスト更新</b>や、別の端末のおむかえルート帖への配布（車両・設定を壊さず学校だけ統合）に使います。</p>
   <div id="schoolList" style="margin-top:10px;"></div>
+  <div class="card" style="margin-top:16px;border-color:#e5c0b7;">
+    <div style="font-size:.85rem;font-weight:700;color:var(--verm);margin-bottom:4px;">学校データの初期化</div>
+    <p class="note" style="margin:0 0 8px;">登録済みの学校をすべて削除します。当日の選択・配車も一緒に消えます（車両・事業所・サイン・児童はそのまま残ります）。地域を変えて登録し直すときなどに。</p>
+    <button class="small ghost" id="btnClearSchools" style="color:var(--verm);border-color:var(--verm);">🗑 学校をすべて削除（初期化）</button>
+  </div>
 </section>
 
 <!-- ④設定 -->
@@ -1833,6 +1838,18 @@ $('#btnExportSchools').addEventListener('click', ()=>{
   const schools = state.schools.map(s=>({name:s.name, kind:s.kind, addr:s.addr||'', lat:s.lat, lng:s.lng, time:s.time||''}));
   const text = 'おむかえルート帖 学校データ（'+schools.length+'校）\n' + JSON.stringify({schools});
   copyText(text).then(ok=> toast(ok!==false?schools.length+'校をコピーしました。支援きろく帖や別端末に貼り付けできます':'コピーできませんでした'));
+});
+$('#btnClearSchools').addEventListener('click', ()=>{
+  const n = state.schools.length;
+  if(!n){ toast('学校が登録されていません'); return; }
+  if(!confirm('登録済みの学校 '+n+'校をすべて削除します。\n当日の選択・配車も一緒に消えます。\n\n必要なら先に「学校データだけを書き出す」で控えを取ってください。\n続けますか？')) return;
+  if(!confirm('本当に削除しますか？ この操作は元に戻せません。')) return;
+  state.schools = [];
+  state.picks = {};
+  state.plan = {assign:[]};
+  save();
+  renderAll();
+  toast(n+'校を削除しました');
 });
 $('#btnImport').addEventListener('click', ()=>{ $('#importText').value=''; $('#dlgImport').showModal(); });
 $('#btnImportCancel').addEventListener('click', ()=> $('#dlgImport').close());
