@@ -1477,9 +1477,27 @@ $('#btnGeoHere').addEventListener('click', ()=>{
     { enableHighAccuracy:true, timeout:12000 }
   );
 });
-async function geocodeAddress(addr){
+function normalizeAddr(a){
+  // 全角の数字・英字を半角に、いろいろなハイフンを「-」に、空白を除去
+  return (a||'')
+    .replace(/[０-９Ａ-Ｚａ-ｚ]/g, c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0))
+    .replace(/[−ー―‐–—－]/g,'-')
+    .replace(/\s+/g,'');
+}
+async function gsiGeocode(q){
+  // 国土地理院の住所検索（日本の住所・番地に強い）
   try{
-    const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=jp&q='+encodeURIComponent(addr);
+    const res = await fetch('https://msearch.gsi.go.jp/address-search/AddressSearch?q='+encodeURIComponent(q));
+    if(!res.ok) return null;
+    const list = await res.json();
+    if(!list || !list.length || !list[0].geometry) return null;
+    const c = list[0].geometry.coordinates; // [lng, lat]
+    return { lat: Math.round(c[1]*1e7)/1e7, lng: Math.round(c[0]*1e7)/1e7 };
+  }catch(e){ return null; }
+}
+async function osmGeocode(q){
+  try{
+    const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=jp&q='+encodeURIComponent(q);
     const res = await fetch(url, { headers:{ 'Accept':'application/json' } });
     if(!res.ok) return null;
     const list = await res.json();
@@ -1489,6 +1507,21 @@ async function geocodeAddress(addr){
       lng: Math.round(parseFloat(list[0].lon)*1e7)/1e7
     };
   }catch(e){ return null; }
+}
+async function geocodeAddress(addr){
+  const a = normalizeAddr(addr);
+  // ① 国土地理院 → ② OpenStreetMap の順で、そのままの住所を検索
+  let pos = await gsiGeocode(a);
+  if(pos) return pos;
+  pos = await osmGeocode(a);
+  if(pos) return pos;
+  // ③ それでも見つからなければ、番地を落として町名までで再検索（位置はおおよそになる）
+  const trimmed = a.replace(/[0-9]+(-[0-9]+)*(番地?|号)?$/,'').replace(/-+$/,'');
+  if(trimmed && trimmed !== a){
+    pos = await gsiGeocode(trimmed) || await osmGeocode(trimmed);
+    if(pos){ pos.approx = true; return pos; }
+  }
+  return null;
 }
 $('#btnGeoAddr').addEventListener('click', async ()=>{
   const addr = ($('#facAddr').value||'').trim();
@@ -1501,7 +1534,7 @@ $('#btnGeoAddr').addEventListener('click', async ()=>{
     $('#facGeo').value = pos.lat+', '+pos.lng;
     save(); renderRoute(); updateGoogleMapsLink();
     setFacGeoStatus(GEO_DEFAULT_NOTE);
-    toast('住所から座標を取得しました');
+    toast(pos.approx ? '番地までは特定できず、町名までのおおよその位置です。「地図から取得」で微調整できます' : '住所から座標を取得しました');
   }else{
     setFacGeoStatus(GEO_DEFAULT_NOTE);
     toast('座標が見つかりませんでした。住所の書き方を変えてお試しください');
