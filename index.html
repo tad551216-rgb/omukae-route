@@ -96,16 +96,17 @@ nav#tabbar button.on{color:var(--verm);font-weight:700;}
   display:flex;flex-direction:column;gap:7px;background:var(--card);
   border:1px solid var(--line);border-radius:9px;padding:9px 10px;margin-bottom:7px;
 }
-.pick.on{border-color:var(--indigo);background:#fff;}
-.pick.confirmed{border-color:#2f7d52;}
-.pick.confirmed .toprow .n1{color:#215c3c;}
+.pick.on{border-color:#2f7d52;background:#fff;}
+.pick.confirmed{border-color:var(--verm);}
+.pick.confirmed .toprow .n1{color:#8f3320;}
 .pick .toprow{display:flex;align-items:center;gap:7px;}
 .pick .tgl{
   flex:0 0 auto;width:40px;height:40px;border-radius:8px;font-size:1.05rem;
   background:#eee8d8;color:var(--muted);display:flex;align-items:center;justify-content:center;
   border:1.5px solid var(--line);cursor:pointer;
 }
-.pick.on .tgl{background:var(--verm);color:#fff;border-color:var(--verm);}
+.pick.on .tgl{background:#2f7d52;color:#fff;border-color:#2f7d52;}
+.pick.confirmed .tgl{background:var(--verm);border-color:var(--verm);}
 .pick .nm{flex:1;min-width:0;}
 .pick .nm .n1{font-size:.9rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .pick .nm input.memo{width:100%;border:none;border-bottom:1px dashed var(--line);border-radius:0;padding:2px 2px;font-size:.78rem;background:transparent;margin-top:2px;}
@@ -118,10 +119,11 @@ nav#tabbar button.on{color:var(--verm);font-weight:700;}
   display:inline-flex;align-items:center;gap:4px;font-size:.76rem;color:var(--muted);
   margin-left:auto;white-space:nowrap;cursor:pointer;
 }
-.pick .confirmChk input{width:auto;flex:none;accent-color:#2f7d52;}
-.pick .confirmChk.on{color:#2f7d52;font-weight:700;}
+.pick .confirmChk input{width:auto;flex:none;accent-color:var(--verm);}
+.pick .confirmChk.on{color:var(--verm);font-weight:700;}
 .pick .bottomrow.confirmedRow{padding-top:2px;padding-bottom:2px;}
-.pick .confirmedSummary{font-size:.86rem;font-weight:700;color:#2f7d52;}
+.pick .confirmedSummary{font-size:.86rem;font-weight:700;color:var(--verm);}
+.pick .cfmMark{display:inline-block;background:var(--verm);color:#fff;border-radius:4px;padding:0 5px;font-size:.78rem;margin-right:3px;vertical-align:1px;}
 .pick .btnUnconfirm{
   margin-left:auto;background:#fff;color:var(--indigo);border:1.5px solid var(--line);
   font-size:.74rem;padding:4px 11px;border-radius:99px;
@@ -208,6 +210,13 @@ a.mapbtn:active{transform:translateY(1px);}
 }
 .sch .nm{flex:1;min-width:0;font-size:.9rem;}
 .sch .nm .ad{font-size:.72rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sch.off{opacity:.55;}
+.sch .vhActive{
+  display:inline-flex;align-items:center;gap:4px;font-size:.76rem;color:var(--muted);
+  white-space:nowrap;cursor:pointer;flex:0 0 auto;
+}
+.sch .vhActive input{width:auto;flex:none;accent-color:#2f7d52;}
+.sch .vhActive.on{color:#2f7d52;font-weight:700;}
 dialog{
   border:1.5px solid var(--indigo);border-radius:12px;padding:16px;width:min(92vw,460px);
   background:var(--card);color:var(--ink);
@@ -514,6 +523,7 @@ function load(){
   if(!s.facility) s.facility = {name:'', addr:''};
   if(!('lat' in s.facility)){ s.facility.lat = null; s.facility.lng = null; }
   if(!Array.isArray(s.vehicles)) s.vehicles = [];
+  s.vehicles.forEach(v=>{ if(!('active' in v)) v.active = true; });
   if(!s.settings) s.settings = {};
   s.settings = Object.assign({}, DEFAULT_SETTINGS, s.settings);
   if(!s.plan || !Array.isArray(s.plan.assign)) s.plan = {assign:[]}; // assign: [{vid, stops:[schoolId]}]
@@ -621,7 +631,7 @@ function showTab(name){
 }
 
 /* ============ ①今日のお迎え ============ */
-const KIND_FILTERS = [['all','すべて'],['小','小学校'],['中','中学校'],['支','支援学校'],['unconfirmed','未確定']];
+const KIND_FILTERS = [['all','すべて'],['小','小学校'],['中','中学校'],['支','支援学校'],['selected','選択中'],['confirmed','確定済み'],['unconfirmed','未確定']];
 function renderFilter(){
   $('#kindFilter').innerHTML = KIND_FILTERS.map(([k,l])=>
     '<button data-k="'+k+'" class="'+(state.filter===k?'on':'')+'">'+l+'</button>').join('');
@@ -641,14 +651,19 @@ function renderPicks(){
   const f = state.filter;
   const shown = state.schools.filter(s=>{
     if(f==='all') return true;
+    if(f==='selected') return pickOf(s.id).on;
+    if(f==='confirmed') return pickOf(s.id).on && pickOf(s.id).confirmed;
     if(f==='unconfirmed') return pickOf(s.id).on && !pickOf(s.id).confirmed;
     if(f==='中') return s.kind==='中'||s.kind==='義';
     return s.kind===f;
   });
   if(shown.length===0){
-    box.innerHTML = f==='unconfirmed'
-      ? '<div class="empty">未確定の学校はありません。すべて確定済みか、まだ何も選んでいません。</div>'
-      : '<div class="empty">学校タブから学校を追加してください</div>';
+    const EMPTY_MSG = {
+      unconfirmed: '未確定の学校はありません。すべて確定済みか、まだ何も選んでいません。',
+      selected: '選択中の学校はありません。お迎えに行く学校をタップして選んでください。',
+      confirmed: '確定済みの学校はありません。時刻・人数を決めて「確定」にチェックしてください。'
+    };
+    box.innerHTML = '<div class="empty">'+(EMPTY_MSG[f]||'学校タブから学校を追加してください')+'</div>';
   }else{
     box.innerHTML = shown.map(s=>{
       const p = pickOf(s.id);
@@ -662,7 +677,7 @@ function renderPicks(){
       if(p.on && p.confirmed){
         // 確定済み：詳細を畳んで、時刻・人数が一目で分かる要約行にする
         html += '<div class="bottomrow confirmedRow">'
-          +'<span class="confirmedSummary">✅ '+esc(t)+'・'+(p.num||0)+'名で確定</span>'
+          +'<span class="confirmedSummary"><span class="cfmMark">✓</span>'+esc(t)+'・'+(p.num||0)+'名で確定</span>'
           +'<button type="button" class="btnUnconfirm">編集する</button>'
           +'</div>';
       }else if(p.on){
@@ -812,8 +827,12 @@ $('#btnClearPicks').addEventListener('click', ()=>{
 });
 
 /* ============ 配車計算 ============ */
-function activeVehicles(){
+function allVehicles(){
   if(state.vehicles.length) return state.vehicles.map(v=>({id:v.id, name:v.name, cap:v.cap}));
+  return [{id:'v0', name:'送迎車', cap:Infinity}]; // 未登録なら1台とみなす
+}
+function activeVehicles(){
+  if(state.vehicles.length) return state.vehicles.filter(v=>v.active!==false).map(v=>({id:v.id, name:v.name, cap:v.cap}));
   return [{id:'v0', name:'送迎車', cap:Infinity}]; // 未登録なら1台とみなす
 }
 $('#btnBuild').addEventListener('click', ()=>{
@@ -822,6 +841,10 @@ $('#btnBuild').addEventListener('click', ()=>{
   const unconfirmed = selected.length - confirmed.length;
   if(confirmed.length===0){
     toast('確定した学校がありません。時刻・人数を決めて「確定」にチェックしてください');
+    return;
+  }
+  if(state.vehicles.length && activeVehicles().length===0){
+    toast('稼働中の車がありません。車両タブで「稼働」にチェックしてください');
     return;
   }
   buildPlan();
@@ -958,7 +981,7 @@ function renderRoute(){
   }
   const facName = state.facility.name || '事業所';
   const vehNames = {};
-  activeVehicles().forEach(v=>vehNames[v.id]=v);
+  allVehicles().forEach(v=>vehNames[v.id]=v);
   const geoMissing = !facPoint() || plan.some(a=>a.stops.some(id=>!hasGeo(schoolById(id))));
   let html = '';
   let grandNum = 0, grandDelay = 0;
@@ -1070,7 +1093,7 @@ function termHtml(no, time, name){
     +'<div class="bd">'+(time?'<span class="t">'+esc(time)+'</span> ':'')+'<span class="s">'+esc(name)+'</span></div></div>';
 }
 function vehSelect(currentVid){
-  return '<select class="vsel">'+state.vehicles.map(v=>
+  return '<select class="vsel">'+state.vehicles.filter(v=>v.active!==false || v.id===currentVid).map(v=>
     '<option value="'+v.id+'"'+(v.id===currentVid?' selected':'')+'>'+esc(v.name)+'</option>').join('')+'</select>';
 }
 function moveStop(vid, id, dir){
@@ -1153,7 +1176,7 @@ function vehicleLines(a, vehNames){
 function planText(){
   const plan = planEntries();
   const vehNames = {};
-  activeVehicles().forEach(v=>vehNames[v.id]=v);
+  allVehicles().forEach(v=>vehNames[v.id]=v);
   const lines = [];
   lines.push('【お迎えルート】'+todayLabel());
   plan.forEach(a=>{
@@ -1168,7 +1191,7 @@ function vehiclePlanText(vid){
   const a = plan.find(x=>x.vid===vid);
   if(!a) return '';
   const vehNames = {};
-  activeVehicles().forEach(v=>vehNames[v.id]=v);
+  allVehicles().forEach(v=>vehNames[v.id]=v);
   const v = vehNames[vid] || {name:'車'};
   const lines = [];
   lines.push('【'+v.name+' 便　お迎えルート】'+todayLabel());
@@ -1261,13 +1284,22 @@ function renderVehicles(){
     return;
   }
   box.innerHTML = state.vehicles.map(v=>
-    '<div class="sch" data-id="'+v.id+'">'
+    '<div class="sch'+(v.active===false?' off':'')+'" data-id="'+v.id+'">'
     +'<span class="kindtag">車</span>'
     +'<div class="nm">'+esc(v.name)+'<div class="ad">乗車できる児童 '+v.cap+' 名</div></div>'
+    +'<label class="vhActive'+(v.active!==false?' on':'')+'"><input type="checkbox" class="vact"'+(v.active!==false?' checked':'')+'>稼働</label>'
     +'<button class="small ghost shrink" data-act="edit">編集</button>'
     +'</div>').join('');
   box.querySelectorAll('.sch [data-act="edit"]').forEach(b=>{
     b.addEventListener('click', ()=> openVehicleDialog(b.closest('.sch').dataset.id));
+  });
+  box.querySelectorAll('.sch .vact').forEach(c=>{
+    c.addEventListener('change', ()=>{
+      const v = vehicleById(c.closest('.sch').dataset.id);
+      v.active = c.checked;
+      save(); renderVehicles(); renderRoute();
+      toast(v.name+'を'+(v.active?'稼働':'稼働なし')+'にしました');
+    });
   });
 }
 let editingVid = null;
@@ -1290,7 +1322,7 @@ $('#btnVehicleSave').addEventListener('click', ()=>{
     Object.assign(vehicleById(editingVid), {name, cap});
   }else{
     state.seq = (state.seq||1000)+1;
-    state.vehicles.push({id:'v'+state.seq, name, cap});
+    state.vehicles.push({id:'v'+state.seq, name, cap, active:true});
   }
   save(); renderVehicles(); renderRoute();
   $('#dlgVehicle').close();
