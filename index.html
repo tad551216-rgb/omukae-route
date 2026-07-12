@@ -1930,18 +1930,23 @@ function applyImportedData(s){
     let updated = 0, added = 0;
     s.schools.forEach(inc=>{
       if(!inc || !inc.name) return;
+      // 区分は、名前から明確に分かる場合（〜小学校・〜中学校・〜義務教育学校・〜支援学校）は
+      // 名前からの判定を優先する。送り元のデータに区分が無い/誤っていても壊れないようにするため。
+      const inferred = classifySchoolKind(inc.name);
+      const incKind = ['小','中','義','支','他'].includes(inc.kind) ? inc.kind : null;
+      const finalKind = (inferred !== '他') ? inferred : incKind;
       const hit = state.schools.find(sc => sc.name === inc.name);
       if(hit){
-        if('kind' in inc) hit.kind = inc.kind;
-        if('addr' in inc) hit.addr = inc.addr;
-        if('lat' in inc) hit.lat = inc.lat;
-        if('lng' in inc) hit.lng = inc.lng;
-        if('time' in inc) hit.time = inc.time;
+        if(finalKind) hit.kind = finalKind;
+        if('addr' in inc && inc.addr) hit.addr = inc.addr;
+        if('lat' in inc && inc.lat!=null) hit.lat = inc.lat;
+        if('lng' in inc && inc.lng!=null) hit.lng = inc.lng;
+        if('time' in inc && inc.time) hit.time = inc.time;
         updated++;
       }else{
         state.seq = (state.seq||1000)+1;
         state.schools.push({
-          id:'u'+state.seq, name:inc.name, kind:inc.kind||'他',
+          id:'u'+state.seq, name:inc.name, kind:finalKind||'他',
           addr:inc.addr||'', lat:(inc.lat!=null?inc.lat:null), lng:(inc.lng!=null?inc.lng:null),
           time:inc.time||'15:00'
         });
