@@ -713,7 +713,9 @@ function renderPicks(){
   $('#todayDate').textContent = todayLabel();
   const box = $('#pickList');
   const f = state.filter;
-  const shown = state.schools.filter(s=>{
+  const shown = state.schools.slice().sort((a,b)=>
+    (KIND_ORDER[a.kind]||9)-(KIND_ORDER[b.kind]||9) || a.name.localeCompare(b.name,'ja')
+  ).filter(s=>{
     if(f==='all') return true;
     if(f==='selected') return pickOf(s.id).on;
     if(f==='confirmed') return pickOf(s.id).on && pickOf(s.id).confirmed;
