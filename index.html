@@ -123,6 +123,7 @@ nav#tabbar button.on{color:var(--verm);font-weight:700;}
 .pick .confirmChk.on{color:var(--verm);font-weight:700;}
 .pick .bottomrow.confirmedRow{padding-top:2px;padding-bottom:2px;}
 .pick .confirmedSummary{font-size:.86rem;font-weight:700;color:var(--verm);}
+.pick .kidNames{font-size:.72rem;color:var(--muted);font-weight:400;margin-left:8px;}
 .pick .cfmMark{display:inline-block;background:var(--verm);color:#fff;border-radius:4px;padding:0 5px;font-size:.78rem;margin-right:3px;vertical-align:1px;}
 .pick .btnUnconfirm{
   margin-left:auto;background:#fff;color:var(--indigo);border:1.5px solid var(--line);
@@ -709,6 +710,10 @@ function pickOf(id){
   if(!('confirmed' in state.picks[id])) state.picks[id].confirmed = false;
   return state.picks[id];
 }
+function nicksOfSchool(s){
+  const sn = shortName(s.name);
+  return state.kids.filter(k => k.school===s.name || shortName(k.school||'')===sn).map(k=>k.nick);
+}
 function renderPicks(){
   $('#todayDate').textContent = todayLabel();
   const box = $('#pickList');
@@ -737,7 +742,9 @@ function renderPicks(){
       let html = '<div class="pick'+(p.on?' on':'')+(p.confirmed?' confirmed':'')+'" data-id="'+s.id+'">';
       html += '<div class="toprow">'
         +'<button class="tgl" aria-label="お迎え切替">'+(p.on?'✓':'＋')+'</button>'
-        +'<div class="nm"><div class="n1"><span class="kindtag'+(s.kind==='支'?' k支':'')+'">'+KIND_LABEL[s.kind]+'</span>'+esc(shortName(s.name))+'</div>'
+        +'<div class="nm"><div class="n1"><span class="kindtag'+(s.kind==='支'?' k支':'')+'">'+KIND_LABEL[s.kind]+'</span>'+esc(shortName(s.name))
+        +(((!p.on || p.confirmed) && nicksOfSchool(s).length) ? '<span class="kidNames">'+esc(nicksOfSchool(s).join('・'))+'</span>' : '')
+        +'</div>'
         +(p.on?'<input class="memo" placeholder="メモ（名前など）" value="'+esc(p.memo)+'">':'')
         +'</div></div>';
       if(p.on && p.confirmed){
@@ -757,7 +764,7 @@ function renderPicks(){
           +'<span class="unit">名</span>'
           +'<label class="confirmChk'+(p.confirmed?' on':'')+'"><input type="checkbox" class="pconfirm"'+(p.confirmed?' checked':'')+'>確定</label>'
           +'</div>';
-        const nicks = state.kids.filter(k=>k.school===s.name).map(k=>k.nick);
+        const nicks = nicksOfSchool(s);
         if(nicks.length){
           const parts = (p.memo||'').split(/[・、,\s]+/).filter(Boolean);
           html += '<div class="nickchips">'+nicks.map(n=>
