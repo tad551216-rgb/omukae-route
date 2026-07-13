@@ -12,6 +12,7 @@
 <meta name="apple-mobile-web-app-title" content="おむかえルート帖">
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>
+dialog h2:focus{ outline:none; }
 :root{
   --paper:#f7f4ea;
   --grid:rgba(44,80,119,.10);
@@ -412,9 +413,9 @@ textarea{min-height:110px;font-size:.8rem;}
 
 <!-- 学校 追加・編集ダイアログ -->
 <dialog id="dlgSchool">
-  <h2 style="margin-top:0;" id="dlgSchoolTitle">学校を追加</h2>
+  <h2 style="margin-top:0;" id="dlgSchoolTitle" tabindex="-1" autofocus>学校を追加</h2>
   <label class="fld" for="scName">学校名</label>
-  <input id="scName" placeholder="例：〇〇市立○○小学校">
+  <input id="scName" autocomplete="nope" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="例：〇〇市立○○小学校">
   <label class="fld" for="scKind">区分</label>
   <select id="scKind">
     <option value="小">小学校</option>
@@ -424,9 +425,9 @@ textarea{min-height:110px;font-size:.8rem;}
     <option value="他">その他</option>
   </select>
   <label class="fld" for="scAddr">住所（省略可・地図検索の精度が上がります）</label>
-  <input id="scAddr" placeholder="例：〇〇県〇〇市○○町○-○">
+  <input id="scAddr" autocomplete="nope" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="例：〇〇県〇〇市○○町○-○">
   <label class="fld" for="scGeo">緯度,経度（省略可）</label>
-  <input id="scGeo" placeholder="例：34.4839, 135.4256 ／ 8Q6QXW2R+XX">
+  <input id="scGeo" autocomplete="nope" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="例：34.4839, 135.4256 ／ 8Q6QXW2R+XX">
   <p class="note">Googleマップで学校を長押しすると座標が、場所をタップするとPlus Code（例：XW2R+XX 和泉市）が出ます。どちらを貼り付けてもOKです（短いPlus Codeは、一緒に付いてくる地名や事業所の座標から場所を復元します）。移動時間・遅延の見込みと、同時刻の学校の並べ替えに使います。</p>
   <label class="fld" for="scTime">いつものお迎え時刻</label>
   <input id="scTime" type="time" value="15:00" style="width:130px;">
@@ -439,9 +440,9 @@ textarea{min-height:110px;font-size:.8rem;}
 
 <!-- 車両 追加・編集ダイアログ -->
 <dialog id="dlgVehicle">
-  <h2 style="margin-top:0;" id="dlgVehicleTitle">車を追加</h2>
+  <h2 style="margin-top:0;" id="dlgVehicleTitle" tabindex="-1" autofocus>車を追加</h2>
   <label class="fld" for="vhName">車の名前</label>
-  <input id="vhName" placeholder="例：ハイエース／軽バン白">
+  <input id="vhName" autocomplete="nope" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="例：ハイエース／軽バン白">
   <label class="fld" for="vhCap">乗車できる児童の人数</label>
   <input id="vhCap" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" style="width:110px;">
   <div class="row" style="margin-top:14px;">
@@ -453,9 +454,9 @@ textarea{min-height:110px;font-size:.8rem;}
 
 <!-- 読み込みダイアログ -->
 <dialog id="dlgImport">
-  <h2 style="margin-top:0;">データの読み込み</h2>
+  <h2 style="margin-top:0;" tabindex="-1" autofocus>データの読み込み</h2>
   <p class="note">「書き出してコピー」で作った文を貼り付けると、今のデータをまるごと置き換えます。学校の住所・座標だけのデータや、支援きろく帖の<b>マスター（ニックネームと学校）</b>を貼り付けたときは、車両や設定はそのままに、学校・児童の情報だけを更新・追加します。</p>
-  <textarea id="importText" placeholder="ここに貼り付け"></textarea>
+  <textarea id="importText" autocomplete="nope" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="ここに貼り付け"></textarea>
   <div class="row" style="margin-top:12px;">
     <button class="ghost" id="btnImportCancel">やめる</button>
     <button class="verm" id="btnImportDo">読み込む</button>
@@ -464,7 +465,7 @@ textarea{min-height:110px;font-size:.8rem;}
 
 <!-- サイン取得ダイアログ -->
 <dialog id="dlgOmkSign">
-  <h2 style="margin-top:0;" id="dlgOmkSignTitle">保護者サイン</h2>
+  <h2 style="margin-top:0;" id="dlgOmkSignTitle" tabindex="-1" autofocus>保護者サイン</h2>
   <p class="note">本日のサービス提供と送迎をご確認のうえ、枠内にサインをお願いします。</p>
   <canvas id="omkSignCanvas" style="width:100%;height:180px;background:#fff;border:1.5px solid var(--indigo);border-radius:10px;touch-action:none;display:block;"></canvas>
   <div class="row" style="margin-top:12px;">
@@ -541,6 +542,11 @@ function save(){
 /* --- ユーティリティ --- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+/* ダイアログを開いた直後に入力欄へフォーカスが入っていたら外す（iOSのIME自動起動対策） */
+function blurIfInput(){
+  const el = document.activeElement;
+  if(el && /^(INPUT|TEXTAREA)$/.test(el.tagName)) el.blur();
+}
 function toast(msg){
   const t = $('#toast'); t.textContent = msg; t.classList.add('show');
   clearTimeout(toast._tm); toast._tm = setTimeout(()=>t.classList.remove('show'), 1800);
@@ -1338,6 +1344,7 @@ function openSchoolDialog(id){
   $('#scTime').value = (s && s.time) || '15:00';
   $('#btnSchoolDelete').style.display = s ? '' : 'none';
   $('#dlgSchool').showModal();
+  blurIfInput();
 }
 $('#btnSchoolCancel').addEventListener('click', ()=> $('#dlgSchool').close());
 $('#btnSchoolSave').addEventListener('click', async ()=>{
@@ -1405,6 +1412,7 @@ function openVehicleDialog(id){
   $('#vhCap').value = v ? v.cap : 6;
   $('#btnVehicleDelete').style.display = v ? '' : 'none';
   $('#dlgVehicle').showModal();
+  blurIfInput();
 }
 $('#btnVehicleCancel').addEventListener('click', ()=> $('#dlgVehicle').close());
 $('#btnVehicleSave').addEventListener('click', ()=>{
@@ -2071,7 +2079,7 @@ $('#btnClearSchools').addEventListener('click', ()=>{
   renderAll();
   toast(n+'校を削除しました');
 });
-$('#btnImport').addEventListener('click', ()=>{ $('#importText').value=''; $('#dlgImport').showModal(); });
+$('#btnImport').addEventListener('click', ()=>{ $('#importText').value=''; $('#dlgImport').showModal(); blurIfInput(); });
 $('#btnImportCancel').addEventListener('click', ()=> $('#dlgImport').close());
 $('#btnImportDo').addEventListener('click', ()=>{
   const raw = $('#importText').value;
@@ -2179,7 +2187,7 @@ function renderSign(){
   const signed = list.filter(k=>state.signs[signKey(k.nick)]).length;
   $('#signCount').textContent = 'サイン '+signed+' / '+list.length;
 }
-$('#btnSignImport').addEventListener('click', ()=>{ $('#importText').value=''; $('#dlgImport').showModal(); });
+$('#btnSignImport').addEventListener('click', ()=>{ $('#importText').value=''; $('#dlgImport').showModal(); blurIfInput(); });
 
 /* サイン描画 */
 let omkSignNick = null, omkDrawn = false, omkDrawing = false;
