@@ -381,6 +381,17 @@ textarea{min-height:110px;font-size:.8rem;}
     <input type="file" id="fileImportJson" accept=".json,application/json" style="display:none;">
   </div>
 
+  <h2>児童データ（ニックネームと学校）</h2>
+  <div class="card">
+    <p class="note" style="margin-top:0;">支援きろく帖が無くても、このアプリだけで児童を登録・変更・削除できます。ここで登録した児童は、今日タブのメモのチップ、絞込みの「児童あり」、サインタブの一覧に使われます。</p>
+    <div id="kidAdminList"></div>
+    <button class="wide verm" id="btnKidAdd" style="margin-top:10px;">＋ 児童を追加</button>
+    <p class="note" style="margin-bottom:4px;margin-top:12px;"><b>これから支援きろく帖を使い始めるとき</b>は、下のボタンでここの児童と学校をまとめて渡せます。支援きろく帖の「児童」タブ →「📥 マスターを取り込む」に貼り付けると、児童（ニックネーム）と学校リストが同時に登録され、そのまま記録を始められます。取り込んだ側では氏名がニックネームのままなので、児童タブで実名・受給者証番号などを補ってください。</p>
+    <button class="wide" id="btnKidsToKiroku">📤 支援きろく帖へ渡す（児童＋学校）</button>
+    <p class="note" id="kidsToKirokuResult" style="margin:6px 0 0;"></p>
+    <p class="note" style="margin-bottom:0;margin-top:12px;"><b>支援きろく帖からマスターを読み込むと、ここの児童はすべて置き換わります。</b>支援きろく帖側に無い児童は削除され、学校の変更もそのまま反映されます（記録帖との整合性を保つためです）。両方をお使いの場合は、児童の追加・変更は<b>支援きろく帖で行い、こちらへ読み込む</b>のが確実です。このアプリだけでお使いの場合は、この画面が児童の正本になります。</p>
+  </div>
+
   <h2>このアプリについて</h2>
   <div class="card" style="font-size:.82rem;color:var(--muted);">
     <p>データはすべてこの端末の中（ブラウザ）だけに保存され、外部には送信されません。到着・遅延は直線距離などからの目安で、実際の道路事情により前後します。ルート案内はGoogleマップに引き継いで表示します。<br>つくる手帖　<span style="color:#aaa;">v31</span></p>
@@ -410,6 +421,22 @@ textarea{min-height:110px;font-size:.8rem;}
   <button data-tab="school"><span class="ic">🏫</span>学校</button>
   <button data-tab="setting"><span class="ic">⚙︎</span>設定</button>
 </nav>
+
+<!-- 児童 追加・編集ダイアログ -->
+<dialog id="dlgKid">
+  <h2 style="margin-top:0;" id="dlgKidTitle" tabindex="-1" autofocus>児童を追加</h2>
+  <label class="fld" for="kdNick">ニックネーム</label>
+  <input id="kdNick" autocomplete="nope" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="例：たっくん">
+  <p class="note">支援きろく帖と合わせる呼び名です。実名は入れないでください。事業所内で重複しないようにします。</p>
+  <label class="fld" for="kdSchool">学校</label>
+  <select id="kdSchool"></select>
+  <p class="note">学校タブに登録した学校から選びます。学校が無いときは、先に学校タブで登録してください。</p>
+  <div class="row" style="margin-top:14px;">
+    <button class="ghost" id="btnKidCancel">やめる</button>
+    <button class="verm" id="btnKidDelete" style="display:none;">削除</button>
+    <button id="btnKidSave">保存する</button>
+  </div>
+</dialog>
 
 <!-- 学校 追加・編集ダイアログ -->
 <dialog id="dlgSchool">
@@ -455,7 +482,7 @@ textarea{min-height:110px;font-size:.8rem;}
 <!-- 読み込みダイアログ -->
 <dialog id="dlgImport">
   <h2 style="margin-top:0;" tabindex="-1" autofocus>データの読み込み</h2>
-  <p class="note">「書き出してコピー」で作った文を貼り付けると、今のデータをまるごと置き換えます。学校の住所・座標だけのデータや、支援きろく帖の<b>マスター（ニックネームと学校）</b>を貼り付けたときは、車両や設定はそのままに、学校・児童の情報だけを更新・追加します。</p>
+  <p class="note">「書き出してコピー」で作った文を貼り付けると、今のデータをまるごと置き換えます。学校の住所・座標だけのデータを貼り付けたときは、車両や設定はそのままに、学校だけを更新・追加します。<br>支援きろく帖の<b>マスター（ニックネームと学校）</b>を貼り付けたときは、<b>児童データをすべて置き換えます</b>（記録帖に無い児童は削除、学校の変更も反映。学校メモも自動で整えます）。学校は更新・追加のみです。</p>
   <textarea id="importText" autocomplete="nope" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="ここに貼り付け"></textarea>
   <div class="row" style="margin-top:12px;">
     <button class="ghost" id="btnImportCancel">やめる</button>
@@ -702,6 +729,103 @@ function showTab(name){
 }
 
 /* ============ ①今日のお迎え ============ */
+/* ====== 児童データのメンテナンス（設定タブ・単体運用向け） ====== */
+let editKidNick = null;   // 編集中の児童（ニックネーム）。新規のときは null
+
+function renderKidAdmin(){
+  const box = $('#kidAdminList');
+  if(!box) return;
+  if(!state.kids.length){
+    box.innerHTML = '<p class="note" style="margin:0;">まだ児童が登録されていません。</p>';
+    return;
+  }
+  const sorted = state.kids.slice().sort((a,b)=>
+    (a.school||'').localeCompare(b.school||'','ja') || a.nick.localeCompare(b.nick,'ja'));
+  box.innerHTML = sorted.map(k=>
+    '<div class="row" style="justify-content:space-between;padding:7px 0;border-bottom:1px dashed var(--line);">'
+    +'<div style="min-width:0;"><b>'+esc(k.nick)+'</b>'
+    +'<div style="font-size:.78rem;color:var(--muted);">'+esc(k.school||'（学校未設定）')+'</div></div>'
+    +'<button class="small ghost" data-nick="'+esc(k.nick)+'">編集</button></div>').join('');
+  box.querySelectorAll('button[data-nick]').forEach(b=>{
+    b.addEventListener('click', ()=>openKidDlg(b.dataset.nick));
+  });
+}
+
+function openKidDlg(nick){
+  editKidNick = nick || null;
+  const kid = nick ? state.kids.find(k=>k.nick===nick) : null;
+  $('#dlgKidTitle').textContent = kid ? '児童を編集' : '児童を追加';
+  $('#kdNick').value = kid ? kid.nick : '';
+  const sel = $('#kdSchool');
+  const opts = state.schools.slice().sort((a,b)=>a.name.localeCompare(b.name,'ja'));
+  sel.innerHTML = '<option value="">（学校未設定）</option>'
+    + opts.map(s=>'<option value="'+esc(s.name)+'">'+esc(s.name)+'</option>').join('');
+  sel.value = kid ? (kid.school||'') : '';
+  $('#btnKidDelete').style.display = kid ? '' : 'none';
+  $('#dlgKid').showModal();
+  blurIfInput();
+}
+
+/* 児童を変えたら、メモ・人数・絞込み・サインをまとめて追従させる */
+function afterKidsChanged(known){
+  syncMemosWithKids(known);
+  save();
+  renderKidAdmin(); renderFilter(); renderPicks(); renderSign();
+}
+
+/* 支援きろく帖へ渡す（記録帖と同じ shien-kiroku-master 形式・実名は含まない） */
+$('#btnKidsToKiroku').addEventListener('click', ()=>{
+  if(!state.kids.length){ toast('先に児童を登録してください'); return; }
+  const kidSchools = Array.from(new Set(state.kids.map(k=>k.school).filter(Boolean)));
+  /* 学校は、児童のいる学校を優先しつつ、登録済みの学校もすべて渡す（あとで児童を追加しやすくするため） */
+  const names = Array.from(new Set(kidSchools.concat(state.schools.map(s=>s.name))));
+  const kindOf = n => (state.schools.find(s=>s.name===n)||{}).kind || '小';
+  const payload = {
+    app:'shien-kiroku-master', ver:1,
+    children: state.kids.map(k=>({nick:k.nick, school:k.school||''})),
+    schools: names.map(n=>({name:n, kind:kindOf(n)}))
+  };
+  const text = '支援きろく帖マスター（ニックネームと学校のみ）\n' + JSON.stringify(payload);
+  const noSchool = state.kids.filter(k=>!k.school).map(k=>k.nick);
+  copyText(text).then(ok=>{
+    if(ok===false){ toast('コピーできませんでした'); return; }
+    $('#kidsToKirokuResult').innerHTML =
+      '✔ コピーしました（児童<b>'+state.kids.length+'名</b>・学校<b>'+names.length+'校</b>）。'
+      +'支援きろく帖の「児童」タブ →「📥 マスターを取り込む」に貼り付けてください。'
+      + (noSchool.length ? '<br><b>学校未設定：</b>'+esc(noSchool.join('・'))+'（先に学校を設定しておくと連携が確実です）' : '');
+    toast('コピーしました。支援きろく帖に貼り付けてください');
+  });
+});
+
+$('#btnKidAdd').addEventListener('click', ()=>openKidDlg(null));
+$('#btnKidCancel').addEventListener('click', ()=>$('#dlgKid').close());
+$('#btnKidSave').addEventListener('click', ()=>{
+  const nick = $('#kdNick').value.trim();
+  const school = $('#kdSchool').value;
+  if(!nick){ toast('ニックネームを入れてください'); return; }
+  const dup = state.kids.find(k=>k.nick===nick && k.nick!==editKidNick);
+  if(dup){ toast('同じニックネームの児童がすでにいます'); return; }
+  const known = state.kids.map(k=>k.nick).concat([nick]);
+  if(editKidNick){
+    const kid = state.kids.find(k=>k.nick===editKidNick);
+    kid.nick = nick; kid.school = school;
+  }else{
+    state.kids.push({nick, school});
+  }
+  $('#dlgKid').close();
+  afterKidsChanged(Array.from(new Set(known)));
+  toast(editKidNick ? '保存しました' : '「'+nick+'」を追加しました');
+});
+$('#btnKidDelete').addEventListener('click', ()=>{
+  if(!editKidNick) return;
+  if(!confirm('「'+editKidNick+'」を削除します。\n学校メモに入っている名前も取り除かれます。よろしいですか？')) return;
+  const known = state.kids.map(k=>k.nick);
+  state.kids = state.kids.filter(k=>k.nick!==editKidNick);
+  $('#dlgKid').close();
+  afterKidsChanged(known);
+  toast('削除しました');
+});
+
 const KIND_FILTERS = [['all','すべて'],['小','小学校'],['中','中学校'],['支','支援学校'],['selected','選択中'],['confirmed','確定済み'],['unconfirmed','未確定']];
 /* 取り込んだ児童データに含まれる学校名の集合（略称でも照合できるようにする） */
 function kidSchoolSet(){
@@ -2034,7 +2158,7 @@ function applyImportedData(s){
       }
     });
     save();
-    renderSchools(); renderFilter(); renderPicks(); renderRoute();
+    renderSchools(); renderFilter(); renderPicks(); renderRoute(); renderKidAdmin();
     if(kidsAdded||kidsUpdated||kidsRemoved) renderSign();
     return {ok:true, mode:'merge', updated, added, kidsAdded, kidsUpdated, kidsRemoved, memoFixed};
   }
@@ -2126,7 +2250,7 @@ $('#fileImportJson').addEventListener('change', (e)=>{
 
 /* ============ 初期化 ============ */
 function renderAll(){
-  renderBulkbar(); renderFilter(); renderPicks(); renderRoute(); renderSchools(); renderVehicles(); renderSettings(); renderSign();
+  renderBulkbar(); renderFilter(); renderPicks(); renderRoute(); renderSchools(); renderVehicles(); renderSettings(); renderSign(); renderKidAdmin();
 }
 
 /* ============ ⑤お送りサイン ============ */
