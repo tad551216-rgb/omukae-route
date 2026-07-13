@@ -1912,17 +1912,49 @@ function simplifyReverseAddr(rjson, knownName){
   return '';
 }
 
+/* 学校メモから、指定のニックネームだけを取り除く（自由記述は残す） */
+function purgeNicksFromMemos(nicks){
+  if(!nicks.length || !state.picks) return 0;
+  let n=0;
+  Object.keys(state.picks).forEach(id=>{
+    const p = state.picks[id];
+    if(!p || !p.memo) return;
+    const parts = p.memo.split(/[・、,\s]+/).filter(Boolean);
+    const kept  = parts.filter(x=>!nicks.includes(x));
+    if(kept.length !== parts.length){
+      p.memo = kept.join('・');
+      const sc = schoolById(id);
+      const schoolNicks = state.kids.filter(k=>sc&&k.school===sc.name).map(k=>k.nick);
+      const cnt = kept.filter(x=>schoolNicks.includes(x)).length;
+      if(cnt>0) p.num = cnt;
+      n++;
+    }
+  });
+  return n;
+}
+
 function applyImportedData(s){
   if(!s || !Array.isArray(s.schools)) return {ok:false};
-  /* 支援きろく帖マスター：児童（ニックネーム＋学校）も取り込む */
-  let kidsAdded=0, kidsUpdated=0;
+  /* 支援きろく帖マスター：児童（ニックネーム＋学校）は「置き換え」。
+     児童の正本は支援きろく帖側なので、向こうで削除された児童はこちらでも消す。 */
+  let kidsAdded=0, kidsUpdated=0, kidsRemoved=0, memoFixed=0;
   if(s.app==='shien-kiroku-master' && Array.isArray(s.children)){
-    s.children.forEach(inc=>{
-      if(!inc || !inc.nick) return;
-      const hit = state.kids.find(k=>k.nick===inc.nick);
-      if(hit){ if(inc.school) hit.school = inc.school; kidsUpdated++; }
-      else{ state.kids.push({nick:inc.nick, school:inc.school||''}); kidsAdded++; }
-    });
+    const incoming = s.children.filter(c=>c && c.nick)
+                               .map(c=>({nick:c.nick, school:c.school||''}));
+    const before   = state.kids.map(k=>k.nick);
+    const incNicks = incoming.map(c=>c.nick);
+    const removed  = state.kids.filter(k=>!incNicks.includes(k.nick)).map(k=>k.nick);
+    kidsAdded   = incoming.filter(c=>!before.includes(c.nick)).length;
+    kidsUpdated = incoming.length - kidsAdded;
+    if(removed.length){
+      if(!confirm('児童マスターを置き換えます。\n\n'
+        +'現在 '+before.length+'名 → 取り込み後 '+incoming.length+'名\n'
+        +'この端末から消える児童（'+removed.length+'名）：\n'+removed.join('・')+'\n\n'
+        +'学校メモに残っているこれらの名前も取り除きます。\n続けますか？')) return {ok:false, cancel:true};
+    }
+    state.kids = incoming;
+    kidsRemoved = removed.length;
+    if(removed.length) memoFixed = purgeNicksFromMemos(removed);
   }
   const isFullBackup = ('vehicles' in s) || ('facility' in s) || ('settings' in s) || ('picks' in s);
   if(isFullBackup){
@@ -1962,14 +1994,21 @@ function applyImportedData(s){
     });
     save();
     renderSchools(); renderPicks(); renderRoute();
-    if(kidsAdded||kidsUpdated) renderSign();
-    return {ok:true, mode:'merge', updated, added, kidsAdded, kidsUpdated};
+    if(kidsAdded||kidsUpdated||kidsRemoved) renderSign();
+    return {ok:true, mode:'merge', updated, added, kidsAdded, kidsUpdated, kidsRemoved, memoFixed};
   }
 }
 function importResultToast(r){
+  if(r && r.cancel){ toast('読み込みを中止しました'); return; }
   if(!r.ok){ toast('読み込めませんでした'); return; }
   if(r.mode==='full') toast('読み込みました');
-  else if(r.kidsAdded||r.kidsUpdated) toast('マスターを読み込みました（児童 追加'+r.kidsAdded+'名・更新'+r.kidsUpdated+'名／学校 追加'+r.added+'件）');
+  else if(r.kidsAdded||r.kidsUpdated||r.kidsRemoved){
+    let m = 'マスターを読み込みました（児童 '+(r.kidsAdded+r.kidsUpdated)+'名';
+    if(r.kidsRemoved) m += '・削除'+r.kidsRemoved+'名';
+    m += '／学校 追加'+r.added+'件）';
+    if(r.memoFixed) m += '　メモ'+r.memoFixed+'件を整理';
+    toast(m);
+  }
   else toast('学校データを更新しました（更新'+r.updated+'件・追加'+r.added+'件）');
 }
 function todayStamp(){
