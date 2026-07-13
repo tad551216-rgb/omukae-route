@@ -697,8 +697,26 @@ function showTab(name){
 
 /* ============ ①今日のお迎え ============ */
 const KIND_FILTERS = [['all','すべて'],['小','小学校'],['中','中学校'],['支','支援学校'],['selected','選択中'],['confirmed','確定済み'],['unconfirmed','未確定']];
+/* 取り込んだ児童データに含まれる学校名の集合（略称でも照合できるようにする） */
+function kidSchoolSet(){
+  const set = new Set();
+  state.kids.forEach(k=>{
+    if(!k || !k.school) return;
+    set.add(k.school);
+    set.add(shortName(k.school));
+  });
+  return set;
+}
+function hasKids(s){
+  const set = kidSchoolSet();
+  return set.has(s.name) || set.has(shortName(s.name));
+}
 function renderFilter(){
-  $('#kindFilter').innerHTML = KIND_FILTERS.map(([k,l])=>
+  const list = KIND_FILTERS.slice();
+  /* 児童マスターを取り込んでいるときだけ「児童あり」を出す */
+  if(state.kids.length) list.splice(1, 0, ['haskids','児童あり']);
+  else if(state.filter==='haskids') state.filter='all';
+  $('#kindFilter').innerHTML = list.map(([k,l])=>
     '<button data-k="'+k+'" class="'+(state.filter===k?'on':'')+'">'+l+'</button>').join('');
   document.querySelectorAll('#kindFilter button').forEach(b=>{
     b.addEventListener('click', ()=>{ state.filter=b.dataset.k; save(); renderFilter(); renderPicks(); });
@@ -722,6 +740,7 @@ function renderPicks(){
     (KIND_ORDER[a.kind]||9)-(KIND_ORDER[b.kind]||9) || a.name.localeCompare(b.name,'ja')
   ).filter(s=>{
     if(f==='all') return true;
+    if(f==='haskids') return hasKids(s);
     if(f==='selected') return pickOf(s.id).on;
     if(f==='confirmed') return pickOf(s.id).on && pickOf(s.id).confirmed;
     if(f==='unconfirmed') return pickOf(s.id).on && !pickOf(s.id).confirmed;
@@ -732,7 +751,8 @@ function renderPicks(){
     const EMPTY_MSG = {
       unconfirmed: '未確定の学校はありません。すべて確定済みか、まだ何も選んでいません。',
       selected: '選択中の学校はありません。お迎えに行く学校をタップして選んでください。',
-      confirmed: '確定済みの学校はありません。時刻・人数を決めて「確定」にチェックしてください。'
+      confirmed: '確定済みの学校はありません。時刻・人数を決めて「確定」にチェックしてください。',
+      haskids: '取り込んだ児童の学校が、学校タブに見つかりません。学校名の表記が一致しているか確認してください。'
     };
     box.innerHTML = '<div class="empty">'+(EMPTY_MSG[f]||'学校タブから学校を追加してください')+'</div>';
   }else{
@@ -1993,7 +2013,7 @@ function applyImportedData(s){
       }
     });
     save();
-    renderSchools(); renderPicks(); renderRoute();
+    renderSchools(); renderFilter(); renderPicks(); renderRoute();
     if(kidsAdded||kidsUpdated||kidsRemoved) renderSign();
     return {ok:true, mode:'merge', updated, added, kidsAdded, kidsUpdated, kidsRemoved, memoFixed};
   }
