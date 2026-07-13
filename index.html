@@ -124,6 +124,9 @@ nav#tabbar button.on{color:var(--verm);font-weight:700;}
 .pick .confirmChk.on{color:var(--verm);font-weight:700;}
 .pick .bottomrow.confirmedRow{padding-top:2px;padding-bottom:2px;}
 .pick .confirmedSummary{font-size:.86rem;font-weight:700;color:var(--verm);}
+.dayChips{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 2px;}
+.dayChips label{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:.86rem;cursor:pointer;user-select:none;}
+.dayChips label.on{background:var(--indigo);color:#fff;border-color:var(--indigo);font-weight:700;}
 .pick .kidNames{font-size:.72rem;color:var(--muted);font-weight:400;margin-left:8px;}
 .pick .cfmMark{display:inline-block;background:var(--verm);color:#fff;border-radius:4px;padding:0 5px;font-size:.78rem;margin-right:3px;vertical-align:1px;}
 .pick .btnUnconfirm{
@@ -431,6 +434,9 @@ textarea{min-height:110px;font-size:.8rem;}
   <label class="fld" for="kdSchool">学校</label>
   <select id="kdSchool"></select>
   <p class="note">学校タブに登録した学校から選びます。学校が無いときは、先に学校タブで登録してください。</p>
+  <label class="fld">利用曜日（きょうタブの表示に反映されます）</label>
+  <div class="dayChips" id="kdDays"></div>
+  <p class="note">どれも選ばないときは「毎日」の扱いになります。支援きろく帖の利用曜日と同じ意味です。</p>
   <div class="row" style="margin-top:14px;">
     <button class="ghost" id="btnKidCancel">やめる</button>
     <button class="verm" id="btnKidDelete" style="display:none;">削除</button>
@@ -551,7 +557,8 @@ function load(){
   if(!s.picks) s.picks = {};
   Object.values(s.picks).forEach(p=>{ if(!('num' in p)) p.num = 1; });
   if(!Array.isArray(s.quickTimes) || s.quickTimes.length!==2) s.quickTimes = ['13:15','13:45'];
-  if(!Array.isArray(s.kids)) s.kids = [];            // {nick, school}
+  if(!Array.isArray(s.kids)) s.kids = [];            // {nick, school, days:[0-6]}
+  s.kids.forEach(k=>{ if(!Array.isArray(k.days)) k.days = []; });   // 空＝毎日
   if(!s.signs) s.signs = {};                          // 'YYYY-MM-DD_nick' -> {sign, signAt}
   // 14日より前のサインは自動削除（localStorage容量の保護）
   try{
@@ -744,7 +751,7 @@ function renderKidAdmin(){
   box.innerHTML = sorted.map(k=>
     '<div class="row" style="justify-content:space-between;padding:7px 0;border-bottom:1px dashed var(--line);">'
     +'<div style="min-width:0;"><b>'+esc(k.nick)+'</b>'
-    +'<div style="font-size:.78rem;color:var(--muted);">'+esc(k.school||'（学校未設定）')+'</div></div>'
+    +'<div style="font-size:.78rem;color:var(--muted);">'+esc(k.school||'（学校未設定）')+'　'+esc(daysLabel(k))+'</div></div>'
     +'<button class="small ghost" data-nick="'+esc(k.nick)+'">編集</button></div>').join('');
   box.querySelectorAll('button[data-nick]').forEach(b=>{
     b.addEventListener('click', ()=>openKidDlg(b.dataset.nick));
@@ -761,6 +768,16 @@ function openKidDlg(nick){
   sel.innerHTML = '<option value="">（学校未設定）</option>'
     + opts.map(s=>'<option value="'+esc(s.name)+'">'+esc(s.name)+'</option>').join('');
   sel.value = kid ? (kid.school||'') : '';
+  const dbox = $('#kdDays'); dbox.innerHTML='';
+  const sd = kid && Array.isArray(kid.days) ? kid.days : [];
+  WNAMES.forEach((w,i)=>{
+    const lb = document.createElement('label');
+    lb.textContent = w;
+    lb.dataset.d = i;
+    lb.classList.toggle('on', sd.includes(i));
+    lb.addEventListener('click', ()=>lb.classList.toggle('on'));
+    dbox.appendChild(lb);
+  });
   $('#btnKidDelete').style.display = kid ? '' : 'none';
   $('#dlgKid').showModal();
   blurIfInput();
@@ -782,7 +799,7 @@ $('#btnKidsToKiroku').addEventListener('click', ()=>{
   const kindOf = n => (state.schools.find(s=>s.name===n)||{}).kind || '小';
   const payload = {
     app:'shien-kiroku-master', ver:1,
-    children: state.kids.map(k=>({nick:k.nick, school:k.school||''})),
+    children: state.kids.map(k=>({nick:k.nick, school:k.school||'', days:Array.isArray(k.days)?k.days:[]})),
     schools: names.map(n=>({name:n, kind:kindOf(n)}))
   };
   const text = '支援きろく帖マスター（ニックネームと学校のみ）\n' + JSON.stringify(payload);
@@ -805,12 +822,13 @@ $('#btnKidSave').addEventListener('click', ()=>{
   if(!nick){ toast('ニックネームを入れてください'); return; }
   const dup = state.kids.find(k=>k.nick===nick && k.nick!==editKidNick);
   if(dup){ toast('同じニックネームの児童がすでにいます'); return; }
+  const days = Array.from($('#kdDays').querySelectorAll('label.on')).map(l=>+l.dataset.d).sort();
   const known = state.kids.map(k=>k.nick).concat([nick]);
   if(editKidNick){
     const kid = state.kids.find(k=>k.nick===editKidNick);
-    kid.nick = nick; kid.school = school;
+    kid.nick = nick; kid.school = school; kid.days = days;
   }else{
-    state.kids.push({nick, school});
+    state.kids.push({nick, school, days});
   }
   $('#dlgKid').close();
   afterKidsChanged(Array.from(new Set(known)));
@@ -828,18 +846,9 @@ $('#btnKidDelete').addEventListener('click', ()=>{
 
 const KIND_FILTERS = [['all','すべて'],['小','小学校'],['中','中学校'],['支','支援学校'],['selected','選択中'],['confirmed','確定済み'],['unconfirmed','未確定']];
 /* 取り込んだ児童データに含まれる学校名の集合（略称でも照合できるようにする） */
-function kidSchoolSet(){
-  const set = new Set();
-  state.kids.forEach(k=>{
-    if(!k || !k.school) return;
-    set.add(k.school);
-    set.add(shortName(k.school));
-  });
-  return set;
-}
+/* きょう利用する児童がいる学校か（利用曜日を反映） */
 function hasKids(s){
-  const set = kidSchoolSet();
-  return set.has(s.name) || set.has(shortName(s.name));
+  return nicksOfSchool(s).length > 0;
 }
 function renderFilter(){
   const list = KIND_FILTERS.slice();
@@ -858,9 +867,27 @@ function pickOf(id){
   if(!('confirmed' in state.picks[id])) state.picks[id].confirmed = false;
   return state.picks[id];
 }
-function nicksOfSchool(s){
+const WNAMES = ['日','月','火','水','木','金','土'];
+/* 利用曜日。空＝毎日（支援きろく帖で未設定の児童も今日の対象にする） */
+function attendsToday(k){
+  if(!Array.isArray(k.days) || !k.days.length) return true;
+  return k.days.includes(new Date().getDay());
+}
+function isOfSchool(k, s){
   const sn = shortName(s.name);
-  return state.kids.filter(k => k.school===s.name || shortName(k.school||'')===sn).map(k=>k.nick);
+  return k.school===s.name || shortName(k.school||'')===sn;
+}
+/* きょう利用する、その学校の児童（メモのチップ・学校名の横・サインタブ・絞込みで使う） */
+function nicksOfSchool(s){
+  return state.kids.filter(k => isOfSchool(k,s) && attendsToday(k)).map(k=>k.nick);
+}
+/* 曜日を問わない、その学校の全児童 */
+function allNicksOfSchool(s){
+  return state.kids.filter(k => isOfSchool(k,s)).map(k=>k.nick);
+}
+function daysLabel(k){
+  if(!Array.isArray(k.days) || !k.days.length) return '毎日';
+  return k.days.slice().sort().map(d=>WNAMES[d]).join('・')+'曜';
 }
 function renderPicks(){
   $('#todayDate').textContent = todayLabel();
@@ -882,7 +909,7 @@ function renderPicks(){
       unconfirmed: '未確定の学校はありません。すべて確定済みか、まだ何も選んでいません。',
       selected: '選択中の学校はありません。お迎えに行く学校をタップして選んでください。',
       confirmed: '確定済みの学校はありません。時刻・人数を決めて「確定」にチェックしてください。',
-      haskids: '取り込んだ児童の学校が、学校タブに見つかりません。学校名の表記が一致しているか確認してください。'
+      haskids: 'きょう利用する児童の学校がありません。利用曜日の設定と、学校名の表記が両アプリで一致しているかを確認してください。'
     };
     box.innerHTML = '<div class="empty">'+(EMPTY_MSG[f]||'学校タブから学校を追加してください')+'</div>';
   }else{
@@ -2103,7 +2130,7 @@ function applyImportedData(s){
   let kidsAdded=0, kidsUpdated=0, kidsRemoved=0, memoFixed=0;
   if(s.app==='shien-kiroku-master' && Array.isArray(s.children)){
     const incoming = s.children.filter(c=>c && c.nick)
-                               .map(c=>({nick:c.nick, school:c.school||''}));
+                               .map(c=>({nick:c.nick, school:c.school||'', days:Array.isArray(c.days)?c.days:[]}));
     const before   = state.kids.map(k=>k.nick);
     const incNicks = incoming.map(c=>c.nick);
     const removed  = state.kids.filter(k=>!incNicks.includes(k.nick)).map(k=>k.nick);
