@@ -261,6 +261,7 @@ textarea{min-height:110px;font-size:.8rem;}
   <p class="note" style="color:var(--verm);font-weight:700;margin-top:-6px;">時刻・人数が決まった学校は「確定」にチェックを。配車してルートを組む対象は、確定した学校だけです。</p>
   <div class="bulkbar" id="bulkbar"></div>
   <div class="filterbar" id="kindFilter"></div>
+  <p class="note" id="kidWarn" style="display:none;color:var(--verm);font-weight:700;"></p>
   <div id="pickList"></div>
   <div class="row" style="margin:12px 0;">
     <button class="ghost small shrink" id="btnClearPicks">選択をすべて解除</button>
@@ -436,7 +437,7 @@ textarea{min-height:110px;font-size:.8rem;}
   <p class="note">学校タブに登録した学校から選びます。学校が無いときは、先に学校タブで登録してください。</p>
   <label class="fld">利用曜日（きょうタブの表示に反映されます）</label>
   <div class="dayChips" id="kdDays"></div>
-  <p class="note">どれも選ばないときは「毎日」の扱いになります。支援きろく帖の利用曜日と同じ意味です。</p>
+  <p class="note">支援きろく帖の利用曜日と同じ意味です。<b>どれも選ばないと「曜日未設定」となり、きょうタブには自動表示されません</b>（スポット利用の児童など）。その日だけお迎えがあるときは、学校のメモに名前を書き足してください。</p>
   <div class="row" style="margin-top:14px;">
     <button class="ghost" id="btnKidCancel">やめる</button>
     <button class="verm" id="btnKidDelete" style="display:none;">削除</button>
@@ -751,7 +752,9 @@ function renderKidAdmin(){
   box.innerHTML = sorted.map(k=>
     '<div class="row" style="justify-content:space-between;padding:7px 0;border-bottom:1px dashed var(--line);">'
     +'<div style="min-width:0;"><b>'+esc(k.nick)+'</b>'
-    +'<div style="font-size:.78rem;color:var(--muted);">'+esc(k.school||'（学校未設定）')+'　'+esc(daysLabel(k))+'</div></div>'
+    +'<div style="font-size:.78rem;color:var(--muted);">'+esc(k.school||'（学校未設定）')
+    +(noDays(k) ? '　<span style="color:var(--verm);font-weight:700;">曜日未設定</span>' : '　'+esc(daysLabel(k)))
+    +'</div></div>'
     +'<button class="small ghost" data-nick="'+esc(k.nick)+'">編集</button></div>').join('');
   box.querySelectorAll('button[data-nick]').forEach(b=>{
     b.addEventListener('click', ()=>openKidDlg(b.dataset.nick));
@@ -769,7 +772,8 @@ function openKidDlg(nick){
     + opts.map(s=>'<option value="'+esc(s.name)+'">'+esc(s.name)+'</option>').join('');
   sel.value = kid ? (kid.school||'') : '';
   const dbox = $('#kdDays'); dbox.innerHTML='';
-  const sd = kid && Array.isArray(kid.days) ? kid.days : [];
+  /* 新規登録は全曜日ONを初期値に（登録したのに今日に出てこない、を防ぐ） */
+  const sd = kid ? (Array.isArray(kid.days) ? kid.days : []) : [0,1,2,3,4,5,6];
   WNAMES.forEach((w,i)=>{
     const lb = document.createElement('label');
     lb.textContent = w;
@@ -868,11 +872,13 @@ function pickOf(id){
   return state.picks[id];
 }
 const WNAMES = ['日','月','火','水','木','金','土'];
-/* 利用曜日。空＝毎日（支援きろく帖で未設定の児童も今日の対象にする） */
+/* 利用曜日。空＝「決まった曜日なし（スポット利用）」で、きょうには自動表示しない。
+   支援きろく帖と同じ扱い。設定漏れで黙って消えないよう、一覧のバッジときょうタブの案内で知らせる。 */
 function attendsToday(k){
-  if(!Array.isArray(k.days) || !k.days.length) return true;
+  if(!Array.isArray(k.days) || !k.days.length) return false;
   return k.days.includes(new Date().getDay());
 }
+function noDays(k){ return !Array.isArray(k.days) || !k.days.length; }
 function isOfSchool(k, s){
   const sn = shortName(s.name);
   return k.school===s.name || shortName(k.school||'')===sn;
@@ -886,11 +892,21 @@ function allNicksOfSchool(s){
   return state.kids.filter(k => isOfSchool(k,s)).map(k=>k.nick);
 }
 function daysLabel(k){
-  if(!Array.isArray(k.days) || !k.days.length) return '毎日';
+  if(noDays(k)) return '曜日未設定';
   return k.days.slice().sort().map(d=>WNAMES[d]).join('・')+'曜';
+}
+function renderKidWarn(){
+  const el = $('#kidWarn'); if(!el) return;
+  const nd = state.kids.filter(noDays);
+  if(!nd.length){ el.style.display='none'; return; }
+  el.style.display = '';
+  el.innerHTML = '⚠ 利用曜日が未設定の児童が' + nd.length + '名います（'
+    + esc(nd.map(k=>k.nick).join('・')) + '）。きょうタブには自動表示されません。'
+    + '設定タブの「児童データ」で曜日を登録するか、スポット利用ならそのままで結構です。';
 }
 function renderPicks(){
   $('#todayDate').textContent = todayLabel();
+  renderKidWarn();
   const box = $('#pickList');
   const f = state.filter;
   const shown = state.schools.slice().sort((a,b)=>
