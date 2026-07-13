@@ -1933,24 +1933,30 @@ function simplifyReverseAddr(rjson, knownName){
 }
 
 /* 学校メモから、指定のニックネームだけを取り除く（自由記述は残す） */
-/* 学校メモの整理。
-   knownNicks（取り込み前後に存在した全ニックネーム）に含まれる語だけを「児童名」とみなし、
-   その学校の現在の児童でないものを取り除く。自由記述（例：水筒わすれ注意）は残す。
-   これで「削除された児童」だけでなく「学校が変わった／学校が空になった児童」も残らない。 */
-function purgeNicksFromMemos(knownNicks){
-  if(!knownNicks.length || !state.picks) return 0;
+/* 学校メモを、いまの児童マスターに合わせて作り直す。
+   ・knownNicks（取り込み前後に存在した全ニックネーム）に含まれる語だけを「児童名」とみなす
+   ・その学校の児童でなくなった名前は取り除く（削除・転校・学校未設定に対応）
+   ・その学校の児童で、まだメモに無い名前は追加する（チップが全部ONの状態になる）
+   ・自由記述（例：水筒わすれ注意）はそのまま残す
+   ・人数は、メモに入った児童の数に合わせる */
+function syncMemosWithKids(knownNicks){
+  if(!state.picks) return 0;
   let n=0;
-  Object.keys(state.picks).forEach(id=>{
-    const p = state.picks[id];
-    if(!p || !p.memo) return;
-    const sc = schoolById(id);
-    if(!sc) return;
-    const mine  = nicksOfSchool(sc);                       // いまこの学校に属する児童
-    const parts = p.memo.split(/[・、,\s]+/).filter(Boolean);
-    const kept  = parts.filter(x => !knownNicks.includes(x) || mine.includes(x));
-    if(kept.length !== parts.length){
-      p.memo = kept.join('・');
-      const cnt = kept.filter(x=>mine.includes(x)).length;
+  state.schools.forEach(sc=>{
+    const mine = nicksOfSchool(sc);
+    const cur  = state.picks[sc.id];
+    if(!mine.length && (!cur || !cur.memo)) return;   // 児童もメモも無い学校は触らない
+    const p = pickOf(sc.id);
+    const parts = (p.memo||'').split(/[・、,\s]+/).filter(Boolean);
+    // ① その学校の児童でなくなった名前を落とす（自由記述は残す）
+    const kept = parts.filter(x => !knownNicks.includes(x) || mine.includes(x));
+    // ② その学校の児童で、まだ入っていない名前を足す
+    const add  = mine.filter(x => !kept.includes(x));
+    const next = kept.concat(add);
+    const memo = next.join('・');
+    const cnt  = next.filter(x=>mine.includes(x)).length;
+    if(memo !== (p.memo||'') || (cnt>0 && p.num !== cnt)){
+      p.memo = memo;
       if(cnt>0) p.num = cnt;
       n++;
     }
@@ -1975,13 +1981,13 @@ function applyImportedData(s){
       if(!confirm('児童マスターを置き換えます。\n\n'
         +'現在 '+before.length+'名 → 取り込み後 '+incoming.length+'名\n'
         +'この端末から消える児童（'+removed.length+'名）：\n'+removed.join('・')+'\n\n'
-        +'学校メモに残っている名前も、いまの学校に合わせて整理します。\n続けますか？')) return {ok:false, cancel:true};
+        +'学校メモも、いまの児童マスターに合わせて作り直します。\n続けますか？')) return {ok:false, cancel:true};
     }
     /* 取り込み前後に存在した全ニックネーム＝「児童名らしき語」。これを基準にメモを整理する */
     const known = Array.from(new Set(before.concat(incNicks)));
     state.kids = incoming;
     kidsRemoved = removed.length;
-    memoFixed = purgeNicksFromMemos(known);
+    memoFixed = syncMemosWithKids(known);
   }
   const isFullBackup = ('vehicles' in s) || ('facility' in s) || ('settings' in s) || ('picks' in s);
   if(isFullBackup){
