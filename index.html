@@ -397,6 +397,15 @@ textarea{min-height:110px;font-size:.8rem;}
     <p class="note" style="margin-bottom:0;margin-top:12px;"><b>支援きろく帖からマスターを読み込むと、ここの児童はすべて置き換わります。</b>支援きろく帖側に無い児童は削除され、学校の変更もそのまま反映されます（記録帖との整合性を保つためです）。両方をお使いの場合は、児童の追加・変更は<b>支援きろく帖で行い、こちらへ読み込む</b>のが確実です。このアプリだけでお使いの場合は、この画面が児童の正本になります。</p>
   </div>
 
+  <h2>お試しと、まっさらに戻す</h2>
+  <div class="card">
+    <p class="note" style="margin:0 0 8px;">架空の学校4校・児童6名・車2台と、本日の選択が入ります。<b>いまのデータはすべて置き換わります。</b>使い方を試すとき、職員の方に説明するときにお使いください。</p>
+    <button class="wide" id="btnSample">🧪 サンプルデータを入れて試す</button>
+    <p class="note" style="margin:10px 0 8px;">児童のニックネームは<b>支援きろく帖のサンプルと同じ</b>にしてあります。両方にサンプルを入れると、マスターの受け渡しやお迎え時刻の取り込みまで通して試せます。</p>
+    <button class="small ghost" id="btnClearAll" style="color:var(--verm);border-color:var(--verm);">🗑 すべてのデータを消す</button>
+    <p class="note" style="margin:6px 0 0;">学校・児童・車両・事業所・選択・サインを、すべて消してまっさらに戻します。</p>
+  </div>
+
   <h2>このアプリについて</h2>
   <div class="card" style="font-size:.82rem;color:var(--muted);">
     <p>データはすべてこの端末の中（ブラウザ）だけに保存され、外部には送信されません。到着・遅延は直線距離などからの目安で、実際の道路事情により前後します。ルート案内はGoogleマップに引き継いで表示します。<br>つくる手帖　<span style="color:#aaa;">v31</span></p>
@@ -2293,6 +2302,64 @@ $('#fileImportJson').addEventListener('change', (e)=>{
 });
 
 /* ============ 初期化 ============ */
+/* ===== お試し用のサンプルデータ =====
+   実在しない学校・児童です。児童のニックネームは支援きろく帖の
+   サンプルと同じにしてあり、両方のサンプルで連携まで試せます。 */
+function sampleState(){
+  const SC=[
+    {id:'x1',name:'みどり小学校',      kind:'小',addr:'（見本）みどり町1-1', lat:34.5030,lng:135.4120,time:'15:00'},
+    {id:'x2',name:'さくら小学校',      kind:'小',addr:'（見本）さくら台2-8', lat:34.4986,lng:135.4204,time:'15:20'},
+    {id:'x3',name:'ひばり特別支援学校',kind:'支',addr:'（見本）ひばり丘3-5', lat:34.5074,lng:135.4271,time:'14:40'},
+    {id:'x4',name:'あおば中学校',      kind:'中',addr:'（見本）あおば4-12', lat:34.4941,lng:135.4098,time:'15:40'}
+  ];
+  const KIDS=[
+    {nick:'はるくん', school:'みどり小学校',       days:[1,2,3,4,5]},
+    {nick:'さくちゃん',school:'さくら小学校',       days:[1,3,5]},
+    {nick:'みなと',   school:'ひばり特別支援学校', days:[1,2,3,4,5]},
+    {nick:'ゆいちゃん',school:'みどり小学校',       days:[2,4]},
+    {nick:'そうた',   school:'あおば中学校',       days:[1,2,3,4,5]},
+    {nick:'ひなちゃん',school:'さくら小学校',       days:[3,5]}
+  ];
+  const V=[
+    {id:'v9001',name:'1号車（ワゴン）',cap:8,active:true},
+    {id:'v9002',name:'2号車（リフト）',cap:4,active:true}
+  ];
+  /* 本日ぶんの選択。みなとさんは車いすなのでリフト車に割り当てる */
+  const picks={
+    x1:{on:true, time:'15:00', memo:'', num:2, confirmed:true},
+    x2:{on:true, time:'15:20', memo:'', num:2, confirmed:true},
+    x3:{on:true, time:'14:40', memo:'昇降口の前でお待ちください', num:1, confirmed:false},
+    x4:{on:true, time:'15:40', memo:'', num:1, confirmed:false}
+  };
+  return {
+    facility:{name:'放課後デイ ひなたぼっこ', addr:'（見本）ひなた町5-3', lat:34.5008, lng:135.4165},
+    schools:SC, kids:KIDS, vehicles:V, picks:picks,
+    plan:{assign:[{vid:'v9001',stops:['x1','x2','x4']},{vid:'v9002',stops:['x3']}]},
+    settings:Object.assign({}, DEFAULT_SETTINGS),
+    quickTimes:['13:15','13:45'],
+    signs:{}, filter:'all', seq:9100
+  };
+}
+$('#btnSample').addEventListener('click', ()=>{
+  const has = (state.schools&&state.schools.length) || (state.kids&&state.kids.length);
+  if(has && !confirm('いまの学校・児童・車両・選択をすべて置き換えて、サンプルを入れます。\nよろしいですか？')) return;
+  state = sampleState();
+  save(); renderAll();
+  toast('サンプルを入れました');
+});
+$('#btnClearAll').addEventListener('click', ()=>{
+  if(!confirm('学校・児童・車両・事業所・選択・サインを、すべて消します。\n元にもどせません。よろしいですか？')) return;
+  if(!confirm('本当によろしいですか？\n先に控えをお取りください。')) return;
+  state = {
+    facility:{name:'', addr:'', lat:null, lng:null},
+    schools:[], kids:[], vehicles:[], picks:{},
+    plan:{assign:[]}, settings:Object.assign({}, DEFAULT_SETTINGS),
+    quickTimes:['13:15','13:45'], signs:{}, filter:'all', seq:1000
+  };
+  save(); renderAll();
+  toast('消しました');
+});
+
 function renderAll(){
   renderBulkbar(); renderFilter(); renderPicks(); renderRoute(); renderSchools(); renderVehicles(); renderSettings(); renderSign(); renderKidAdmin();
 }
