@@ -23,12 +23,16 @@ dialog h2:focus{ outline:none; }
   --line:#d8d2c0;
   --card:#fffdf6;
   --muted:#8a8578;
+  --txt-scale:1;
+  --txt-weight:400;
+  --main-maxw:640px;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-html{font-size:16px;}
+html{font-size:calc(16px * var(--txt-scale));}
 body{
   font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
   color:var(--ink);
+  font-weight:var(--txt-weight);
   background:
     repeating-linear-gradient(0deg,transparent,transparent 23px,var(--grid) 23px,var(--grid) 24px),
     repeating-linear-gradient(90deg,transparent,transparent 23px,var(--grid) 23px,var(--grid) 24px),
@@ -46,7 +50,7 @@ header{
 }
 header h1{font-size:1.15rem;letter-spacing:.12em;font-weight:700;}
 header .sub{font-size:.68rem;letter-spacing:.2em;opacity:.75;}
-main{max-width:640px;margin:0 auto;padding:14px 14px 20px;}
+main{max-width:var(--main-maxw);margin:0 auto;padding:14px 14px 20px;}
 section.tab{display:none;}
 section.tab.active{display:block;}
 h2{
@@ -70,9 +74,12 @@ button.small{font-size:.78rem;padding:5px 10px;border-radius:6px;}
 button.wide{display:block;width:100%;font-size:1.02rem;padding:13px;letter-spacing:.15em;}
 button:disabled{opacity:.4;}
 input,select,textarea{
-  font-family:inherit;font-size:16px;border:1px solid var(--line);border-radius:7px;
+  font-family:inherit;font-size:1rem;border:1px solid var(--line);border-radius:7px;
   padding:8px 9px;background:#fff;color:var(--ink);width:100%;
 }
+.choice-btn{background:#fff;color:var(--indigo);border:1.5px solid var(--indigo);}
+.choice-btn.active{background:var(--indigo);color:#fff;}
+input[type="range"]{width:100%;accent-color:var(--indigo);padding:0;}
 input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--indigo);outline-offset:1px;}
 label.fld{display:block;font-size:.78rem;color:var(--indigo);font-weight:600;margin:8px 0 3px;}
 .row{display:flex;gap:8px;align-items:center;}
@@ -293,6 +300,28 @@ textarea{min-height:110px;font-size:.8rem;}
 
 <!-- ④設定 -->
 <section class="tab" id="tab-setting">
+  <h2>表示設定（文字の大きさ・端末）</h2>
+  <div class="card">
+    <p class="note" style="margin-top:0;">文字が小さくて読みにくいときは、ここで調整してください。設定はこの端末に自動で保存されます。</p>
+
+    <label class="fld">お使いの端末</label>
+    <div class="row" id="deviceChoice" style="gap:8px;">
+      <button type="button" class="small choice-btn" id="btnDevPhone" data-device="phone">📱 スマホ</button>
+      <button type="button" class="small choice-btn" id="btnDevTablet" data-device="tablet">📟 タブレット</button>
+    </div>
+
+    <label class="fld" for="txtScale" style="margin-top:14px;">文字の大きさ：<span id="txtScaleLabel">100%</span></label>
+    <input type="range" id="txtScale" min="100" max="170" step="10" value="100">
+
+    <label class="fld" style="margin-top:14px;">文字の太さ</label>
+    <div class="row" id="weightChoice" style="gap:8px;">
+      <button type="button" class="small choice-btn" id="btnWNormal" data-weight="400">標準</button>
+      <button type="button" class="small choice-btn" id="btnWBold" data-weight="600">太字</button>
+    </div>
+
+    <button class="small ghost" id="btnDisplayReset" style="margin-top:14px;">初期設定に戻す</button>
+  </div>
+
   <h2>車両（送迎車）</h2>
   <p class="note">車の名前と乗車できる人数（運転手・添乗員を除いた児童の席数）を登録します。</p>
   <button class="small" id="btnAddVehicle">＋ 車を追加</button>
@@ -408,7 +437,7 @@ textarea{min-height:110px;font-size:.8rem;}
 
   <h2>このアプリについて</h2>
   <div class="card" style="font-size:.82rem;color:var(--muted);">
-    <p>データはすべてこの端末の中（ブラウザ）だけに保存され、外部には送信されません。到着・遅延は直線距離などからの目安で、実際の道路事情により前後します。ルート案内はGoogleマップに引き継いで表示します。<br>つくる手帖　<span style="color:#aaa;">v31</span></p>
+    <p>データはすべてこの端末の中（ブラウザ）だけに保存され、外部には送信されません。到着・遅延は直線距離などからの目安で、実際の道路事情により前後します。ルート案内はGoogleマップに引き継いで表示します。<br>つくる手帖　<span style="color:#aaa;">v32</span></p>
   </div>
 </section>
 
@@ -527,6 +556,24 @@ textarea{min-height:110px;font-size:.8rem;}
 /* ============ おむかえルート帖 v2 ============ */
 const STORE_KEY = 'omukae-techo-v1';
 const KIND_LABEL = {'小':'小','中':'中','義':'義','支':'支援','他':'他'};
+
+/* ====== 表示設定（文字の大きさ・端末）：本体のデータとは別に保存 ====== */
+const DISPLAY_KEY = 'omukae-display-v1';
+const DEFAULT_DISPLAY = {device:'phone', scale:100, weight:400};
+function loadDisplay(){
+  let d = null;
+  try{ d = JSON.parse(localStorage.getItem(DISPLAY_KEY)); }catch(e){}
+  return Object.assign({}, DEFAULT_DISPLAY, d||{});
+}
+function saveDisplay(){ try{ localStorage.setItem(DISPLAY_KEY, JSON.stringify(displaySettings)); }catch(e){} }
+function applyDisplay(){
+  const root = document.documentElement;
+  root.style.setProperty('--txt-scale', (displaySettings.scale/100));
+  root.style.setProperty('--txt-weight', displaySettings.weight);
+  root.style.setProperty('--main-maxw', displaySettings.device==='tablet' ? '900px' : '640px');
+}
+let displaySettings = loadDisplay();
+applyDisplay(); /* ちらつき防止のため、本体の読み込みより先に反映 */
 
 /* --- 初期学校リストは空（「地域から検索」または手入力で登録） --- */
 const SCHOOL_MASTER = [];
@@ -1618,7 +1665,32 @@ $('#btnVehicleDelete').addEventListener('click', ()=>{
 });
 
 /* ============ ④設定 ============ */
+function renderDisplaySettings(){
+  $('#btnDevPhone').classList.toggle('active', displaySettings.device!=='tablet');
+  $('#btnDevTablet').classList.toggle('active', displaySettings.device==='tablet');
+  $('#btnWNormal').classList.toggle('active', displaySettings.weight!==600);
+  $('#btnWBold').classList.toggle('active', displaySettings.weight===600);
+  $('#txtScale').value = displaySettings.scale;
+  $('#txtScaleLabel').textContent = displaySettings.scale+'%';
+}
+$('#btnDevPhone').addEventListener('click', ()=>{ displaySettings.device='phone'; saveDisplay(); applyDisplay(); renderDisplaySettings(); });
+$('#btnDevTablet').addEventListener('click', ()=>{ displaySettings.device='tablet'; saveDisplay(); applyDisplay(); renderDisplaySettings(); });
+$('#btnWNormal').addEventListener('click', ()=>{ displaySettings.weight=400; saveDisplay(); applyDisplay(); renderDisplaySettings(); });
+$('#btnWBold').addEventListener('click', ()=>{ displaySettings.weight=600; saveDisplay(); applyDisplay(); renderDisplaySettings(); });
+$('#txtScale').addEventListener('input', e=>{
+  displaySettings.scale = parseInt(e.target.value,10)||100;
+  $('#txtScaleLabel').textContent = displaySettings.scale+'%';
+  applyDisplay();
+});
+$('#txtScale').addEventListener('change', ()=>{ saveDisplay(); });
+$('#btnDisplayReset').addEventListener('click', ()=>{
+  displaySettings = Object.assign({}, DEFAULT_DISPLAY);
+  saveDisplay(); applyDisplay(); renderDisplaySettings();
+  toast('文字の大きさを初期設定に戻しました');
+});
+
 function renderSettings(){
+  renderDisplaySettings();
   $('#facName').value = state.facility.name || '';
   $('#facAddr').value = state.facility.addr || '';
   $('#facGeo').value = hasGeo(state.facility) ? (state.facility.lat+', '+state.facility.lng) : '';
