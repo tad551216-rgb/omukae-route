@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>おむかえルート帖 LINE版 | つくる手帖</title>
+<title>おむかえルート帖 | つくる手帖</title>
 <meta name="description" content="放課後等デイサービスのお迎えルートづくり。車両と人数を登録して同時刻のお迎えを自動配車し、遅延見込みも表示。データは端末の中だけに保存されます。">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#2c5077">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="おむかえLINE">
+<meta name="apple-mobile-web-app-title" content="おむかえルート帖">
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>
 dialog h2:focus{ outline:none; }
@@ -255,7 +255,7 @@ textarea{min-height:110px;font-size:.8rem;}
 </head>
 <body>
 <header>
-  <h1>おむかえルート帖 <span style="font-size:.6em;vertical-align:.15em;opacity:.75;">LINE版</span></h1>
+  <h1>おむかえルート帖</h1>
   <div class="sub">TSUKURU TECHO ｜ 放課後等デイサービスの送迎ルートづくり</div>
 </header>
 
@@ -326,22 +326,6 @@ textarea{min-height:110px;font-size:.8rem;}
   <p class="note">車の名前と乗車できる人数（運転手・添乗員を除いた児童の席数）を登録します。</p>
   <button class="small" id="btnAddVehicle">＋ 車を追加</button>
   <div id="vehicleList" style="margin-top:10px;"></div>
-
-  <h2>LINEで送る（自動連絡）</h2>
-  <div class="card">
-    <p class="note" style="margin-top:0;">確定したルートを、車ごとに担当ドライバーのLINEへ送れます。使うには中継（GAS）の用意が必要です。設定しないときは、これまでどおり手でコピーして送れます。</p>
-    <label class="chk" style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-      <input type="checkbox" id="lnOn"><span>LINEで送るボタンを表示する</span>
-    </label>
-    <label class="fld" for="lnUrl">中継のURL</label>
-    <input id="lnUrl" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="https://script.google.com/macros/s/.../exec">
-    <label class="fld" for="lnKey">合言葉（APP_KEY）</label>
-    <input id="lnKey" type="password" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="中継に設定したものと同じ文字列">
-    <div class="row" style="margin-top:8px;">
-      <button class="small ghost" id="btnLineTest">つながるか試す</button>
-    </div>
-    <p class="note" id="lnStatus" style="margin-bottom:0;">合言葉は、控えの書き出しには含まれません。機種変更のときは入れ直してください。</p>
-  </div>
 
   <h2>事業所（出発・帰着地点）</h2>
   <div class="card">
@@ -453,7 +437,7 @@ textarea{min-height:110px;font-size:.8rem;}
 
   <h2>このアプリについて</h2>
   <div class="card" style="font-size:.82rem;color:var(--muted);">
-    <p>データはすべてこの端末の中（ブラウザ）だけに保存されます。設定タブで「LINEで送る」をオンにしたときだけ、確定したルートの本文が、ご自身で用意した中継を通ってLINEに送られます。それ以外に外部へ送信されることはありません。到着・遅延は直線距離などからの目安で、実際の道路事情により前後します。ルート案内はGoogleマップに引き継いで表示します。<br>つくる手帖　<span style="color:#aaa;">v33</span></p>
+    <p>データはすべてこの端末の中（ブラウザ）だけに保存され、外部には送信されません。到着・遅延は直線距離などからの目安で、実際の道路事情により前後します。ルート案内はGoogleマップに引き継いで表示します。<br>つくる手帖　<span style="color:#aaa;">v32</span></p>
   </div>
 </section>
 
@@ -534,24 +518,10 @@ textarea{min-height:110px;font-size:.8rem;}
   <input id="vhName" autocomplete="nope" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="例：ハイエース／軽バン白">
   <label class="fld" for="vhCap">乗車できる児童の人数</label>
   <input id="vhCap" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" style="width:110px;">
-  <label class="fld" for="vhLine">ドライバーのLINE（省略可）</label>
-  <input id="vhLine" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Uで始まる文字列">
-  <p class="note" style="margin:6px 0 0;">公式アカウントを友だち追加すると、本人あてにIDが届きます。それを貼り付けると、確定したルートがこの車の担当者へ自動で送れます。</p>
   <div class="row" style="margin-top:14px;">
     <button class="ghost" id="btnVehicleCancel">やめる</button>
     <button class="verm" id="btnVehicleDelete" style="display:none;">削除</button>
     <button id="btnVehicleSave">保存する</button>
-  </div>
-</dialog>
-
-<!-- LINE送信ダイアログ -->
-<dialog id="dlgLine">
-  <h2 style="margin-top:0;" id="dlgLineTitle" tabindex="-1" autofocus>LINEで送る</h2>
-  <p class="note" style="margin-top:0;">送る前に、本文をそのまま直せます。児童の実名が入っていないか、ここで確かめてください。</p>
-  <div id="lineBody"></div>
-  <div class="row" style="margin-top:14px;">
-    <button class="ghost" id="btnLineCancel">やめる</button>
-    <button id="btnLineSend">この内容で送る</button>
   </div>
 </dialog>
 
@@ -584,7 +554,7 @@ textarea{min-height:110px;font-size:.8rem;}
 <script>
 'use strict';
 /* ============ おむかえルート帖 v2 ============ */
-const STORE_KEY = 'omukae-line-v1';
+const STORE_KEY = 'omukae-techo-v1';
 const KIND_LABEL = {'小':'小','中':'中','義':'義','支':'支援','他':'他'};
 
 /* ====== 表示設定（文字の大きさ・端末）：本体のデータとは別に保存 ====== */
@@ -639,7 +609,6 @@ function load(){
   if(!('lat' in s.facility)){ s.facility.lat = null; s.facility.lng = null; }
   if(!Array.isArray(s.vehicles)) s.vehicles = [];
   s.vehicles.forEach(v=>{ if(!('active' in v)) v.active = true; });
-  if(!s.lineCfg) s.lineCfg = {url:'', key:'', on:false};
   if(!s.settings) s.settings = {};
   s.settings = Object.assign({}, DEFAULT_SETTINGS, s.settings);
   if(!s.plan || !Array.isArray(s.plan.assign)) s.plan = {assign:[]}; // assign: [{vid, stops:[schoolId]}]
@@ -1397,7 +1366,6 @@ function renderRoute(){
     html += '<div class="row" style="margin-top:6px;">'
       +'<button type="button" class="small ghost btnVehCopy" data-vid="'+a.vid+'">この車の連絡文をコピー</button>'
       +(navigator.share?'<button type="button" class="small ghost btnVehShare" data-vid="'+a.vid+'">共有（LINEなど）</button>':'')
-      +(lineCfgOK()?'<button type="button" class="small btnVehLine" data-vid="'+a.vid+'">📨 LINEで送る</button>':'')
       +'</div>';
     html += '</div>';
   });
@@ -1409,7 +1377,6 @@ function renderRoute(){
   html += '<div class="row" style="margin-top:10px;">'
         +'<button class="ghost" id="btnCopyPlan">ルート文をコピー</button>'
         +(navigator.share?'<button class="ghost" id="btnSharePlan">共有（LINEなど）</button>':'')
-        +(lineCfgOK()?'<button id="btnLineAll">📨 全部の車にLINEで送る</button>':'')
         +'</div>';
   box.innerHTML = html;
 
@@ -1435,11 +1402,6 @@ function renderRoute(){
       navigator.share({text: vehiclePlanText(b.dataset.vid)}).catch(()=>{});
     });
   });
-  box.querySelectorAll('.btnVehLine').forEach(b=>{
-    b.addEventListener('click', ()=> openLineDialog([b.dataset.vid]));
-  });
-  const la = $('#btnLineAll');
-  if(la) la.addEventListener('click', ()=> openLineDialog(planEntries().map(a=>a.vid)));
   const cp = $('#btnCopyPlan');
   if(cp) cp.addEventListener('click', ()=>{
     copyText(planText()).then(ok=> toast(ok!==false?'コピーしました':'コピーできませんでした'));
@@ -1672,7 +1634,6 @@ function openVehicleDialog(id){
   $('#dlgVehicleTitle').textContent = v ? '車を編集' : '車を追加';
   $('#vhName').value = v ? v.name : '';
   $('#vhCap').value = v ? v.cap : 6;
-  $('#vhLine').value = (v && v.lineId) ? v.lineId : '';
   $('#btnVehicleDelete').style.display = v ? '' : 'none';
   $('#dlgVehicle').showModal();
   blurIfInput();
@@ -1682,13 +1643,11 @@ $('#btnVehicleSave').addEventListener('click', ()=>{
   const name = $('#vhName').value.trim();
   const cap = Math.max(1, parseInt($('#vhCap').value,10)||0);
   if(!name){ toast('車の名前を入れてください'); return; }
-  const lineId = ($('#vhLine').value||'').trim();
-  if(lineId && !/^U[0-9a-f]{32}$/i.test(lineId)){ toast('LINEのIDは、Uで始まる33文字です。届いたメッセージからそのまま貼り付けてください'); return; }
   if(editingVid){
-    Object.assign(vehicleById(editingVid), {name, cap, lineId});
+    Object.assign(vehicleById(editingVid), {name, cap});
   }else{
     state.seq = (state.seq||1000)+1;
-    state.vehicles.push({id:'v'+state.seq, name, cap, lineId, active:true});
+    state.vehicles.push({id:'v'+state.seq, name, cap, active:true});
   }
   save(); renderVehicles(); renderRoute();
   $('#dlgVehicle').close();
@@ -1732,7 +1691,6 @@ $('#btnDisplayReset').addEventListener('click', ()=>{
 
 function renderSettings(){
   renderDisplaySettings();
-  renderLineSettings();
   $('#facName').value = state.facility.name || '';
   $('#facAddr').value = state.facility.addr || '';
   $('#facGeo').value = hasGeo(state.facility) ? (state.facility.lat+', '+state.facility.lng) : '';
@@ -1742,91 +1700,6 @@ function renderSettings(){
   $('#setGap').value = state.settings.gap;
   updateGoogleMapsLink();
 }
-
-/* ============ LINEで送る ============ */
-function lineCfgOK(){
-  const c = state.lineCfg || {};
-  return !!(c.on && c.url && c.key);
-}
-function renderLineSettings(){
-  const c = state.lineCfg || {};
-  $('#lnOn').checked = !!c.on;
-  $('#lnUrl').value = c.url || '';
-  $('#lnKey').value = c.key || '';
-}
-$('#lnOn').addEventListener('change', e=>{ state.lineCfg.on = e.target.checked; save(); renderRoute(); });
-$('#lnUrl').addEventListener('change', e=>{ state.lineCfg.url = e.target.value.trim(); save(); renderRoute(); });
-$('#lnKey').addEventListener('change', e=>{ state.lineCfg.key = e.target.value.trim(); save(); renderRoute(); });
-
-async function callRelay(payload){
-  const url = (state.lineCfg && state.lineCfg.url) || '';
-  if(!url) throw new Error('中継のURLが未設定です');
-  const res = await fetch(url, {
-    method:'POST',
-    /* application/json にすると事前確認で弾かれるため text/plain で送ります */
-    headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body: JSON.stringify(Object.assign({key:(state.lineCfg.key||'')}, payload))
-  });
-  return await res.json();
-}
-
-$('#btnLineTest').addEventListener('click', async ()=>{
-  const st = $('#lnStatus');
-  st.textContent = '確かめています…';
-  try{
-    const r = await callRelay({action:'ping'});
-    st.textContent = r.ok ? '✅ つながりました。' : '⚠ ' + (r.error || 'うまくいきませんでした');
-  }catch(e){
-    st.textContent = '⚠ つながりませんでした。URLと、中継が「全員」に公開されているかをご確認ください。';
-  }
-});
-
-let lineQueue = [];
-function openLineDialog(vids){
-  if(!lineCfgOK()){ toast('設定タブでLINEの設定をしてください'); return; }
-  lineQueue = vids.map(vid=>{
-    const v = vehicleById(vid) || {};
-    return {vid, name: v.name || '車', userId: (v.lineId||'').trim(), text: vehiclePlanText(vid)};
-  }).filter(x=>x.text);
-  if(!lineQueue.length){ toast('送るルートがありません'); return; }
-
-  $('#dlgLineTitle').textContent = lineQueue.length>1 ? 'LINEで送る（'+lineQueue.length+'台）' : 'LINEで送る';
-  $('#lineBody').innerHTML = lineQueue.map((x,i)=>
-    '<div class="card" style="margin-bottom:10px;">'
-    +'<div style="font-weight:700;color:var(--indigo);margin-bottom:6px;">'+esc(x.name)+'</div>'
-    +(x.userId
-      ? '<textarea class="lnText" data-i="'+i+'" rows="10" style="width:100%;box-sizing:border-box;font-size:.85rem;line-height:1.6;">'+esc(x.text)+'</textarea>'
-      : '<p class="note" style="margin:0;color:var(--verm);">LINEが未登録です。設定タブの「車両」で、この車にドライバーのLINEを登録してください。</p>')
-    +'</div>').join('');
-  $('#dlgLine').showModal();
-  blurIfInput();
-}
-$('#btnLineCancel').addEventListener('click', ()=> $('#dlgLine').close());
-$('#btnLineSend').addEventListener('click', async ()=>{
-  document.querySelectorAll('#lineBody .lnText').forEach(t=>{
-    lineQueue[parseInt(t.dataset.i,10)].text = t.value;
-  });
-  const items = lineQueue.filter(x=>x.userId && x.text.trim())
-    .map(x=>({userId:x.userId, vehicle:x.name, text:x.text}));
-  if(!items.length){ toast('送り先が登録されていません'); return; }
-
-  const btn = $('#btnLineSend');
-  btn.disabled = true; btn.textContent = '送っています…';
-  try{
-    const r = await callRelay({action:'push', date: todayLabel(), items: items});
-    if(!r.ok){ toast('送れませんでした：' + (r.error||'')); }
-    else{
-      const ng = (r.results||[]).filter(x=>!x.ok);
-      toast(ng.length ? (items.length-ng.length)+'台に送りました（'+ng.map(x=>x.vehicle).join('・')+'は失敗）'
-                      : items.length+'台に送りました');
-      if(!ng.length) $('#dlgLine').close();
-    }
-  }catch(e){
-    toast('中継につながりませんでした');
-  }
-  btn.disabled = false; btn.textContent = 'この内容で送る';
-});
-
 function updateGoogleMapsLink(){
   const a = $('#btnGeoGoogle');
   if(!a) return;
@@ -1965,7 +1838,7 @@ const PREFS = ['北海道','青森県','岩手県','宮城県','秋田県','山�
   '岐阜県','静岡県','愛知県','三重県','滋賀県','京都府','大阪府','兵庫県','奈良県','和歌山県',
   '鳥取県','島根県','岡山県','広島県','山口県','徳島県','香川県','愛媛県','高知県','福岡県',
   '佐賀県','長崎県','熊本県','大分県','宮崎県','鹿児島県','沖縄県'];
-const SCHOOL_DB_BASE = '../omukae-route/data/';
+const SCHOOL_DB_BASE = 'data/';
 const dbPrefCache = {};
 (function initDbPrefSelect(){
   const sel = $('#dbPref');
@@ -2433,14 +2306,8 @@ function todayStamp(){
   return d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');
 }
 
-/* 控えには中継の合言葉を含めません（メモやLINEに貼られるため） */
-function exportSafeState(){
-  const s = JSON.parse(JSON.stringify(state));
-  if(s.lineCfg) s.lineCfg.key = '';
-  return s;
-}
 $('#btnExport').addEventListener('click', ()=>{
-  const text = 'おむかえルート帖データ\n' + JSON.stringify(exportSafeState());
+  const text = 'おむかえルート帖データ\n' + JSON.stringify(state);
   copyText(text).then(ok=> toast(ok!==false?'コピーしました。メモ等に貼って保存を':'コピーできませんでした'));
 });
 $('#btnExportSchools').addEventListener('click', ()=>{
@@ -2478,7 +2345,7 @@ $('#btnImportDo').addEventListener('click', ()=>{
 /* JSONファイルでの保存・読み込み */
 $('#btnExportJson').addEventListener('click', ()=>{
   try{
-    const blob = new Blob([JSON.stringify(exportSafeState(), null, 2)], {type:'application/json'});
+    const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -2548,9 +2415,7 @@ function sampleState(){
 $('#btnSample').addEventListener('click', ()=>{
   const has = (state.schools&&state.schools.length) || (state.kids&&state.kids.length);
   if(has && !confirm('いまの学校・児童・車両・選択をすべて置き換えて、サンプルを入れます。\nよろしいですか？')) return;
-  const keepLine = state.lineCfg;
   state = sampleState();
-  state.lineCfg = keepLine;
   save(); renderAll();
   toast('サンプルを入れました');
 });
@@ -2561,8 +2426,7 @@ $('#btnClearAll').addEventListener('click', ()=>{
     facility:{name:'', addr:'', lat:null, lng:null},
     schools:[], kids:[], vehicles:[], picks:{},
     plan:{assign:[]}, settings:Object.assign({}, DEFAULT_SETTINGS),
-    quickTimes:['13:15','13:45'], signs:{}, filter:'all', seq:1000,
-    lineCfg:{url:'', key:'', on:false}
+    quickTimes:['13:15','13:45'], signs:{}, filter:'all', seq:1000
   };
   save(); renderAll();
   toast('消しました');
