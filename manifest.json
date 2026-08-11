@@ -1,7 +1,7 @@
 {
-  "name": "おむかえルート帖",
-  "short_name": "おむかえ",
-  "description": "放課後等デイサービスのお迎えルートづくり（つくる手帖）",
+  "name": "おむかえルート帖 LINE版",
+  "short_name": "おむかえLINE",
+  "description": "放課後等デイサービスのお迎えルートづくり。確定したルートを担当ドライバーのLINEへ送れます（つくる手帖）",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
