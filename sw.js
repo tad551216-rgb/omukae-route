@@ -3,7 +3,7 @@
    自分の名前空間（TT_NS）のものだけを消します。 */
 const TT_NS = 'tt:omukae-route:';
 const TT_OLD = 'omukae-techo-v53';   /* 旧名。次の更新のときに消して構いません */
-const CACHE = TT_NS + 'v53';
+const CACHE = TT_NS + 'v54';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
